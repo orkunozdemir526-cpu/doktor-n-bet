@@ -47,7 +47,7 @@ LOGIN_REDIRECT_URL = 'doktor_paneli_redirect'
 LOGOUT_REDIRECT_URL = 'login'
 LOGIN_URL = 'login'
 # GİRİŞ VE ÇIKIŞ YÖNLENDİRMELERİ
-LOGIN_REDIRECT_URL = 'doktor_paneli' # Giriş yapınca otomatik panele git
-LOGIN_URL = 'login'                  # Giriş sayfası adresi
-# settings.py dosyasının en altına ekleyin
-LOGOUT_REDIRECT_URL = 'login'  # Çıkış yapınca 'login' isimli URL'ye (bizim şık sayfamıza) git
+# GİRİŞ VE ÇIKIŞ YÖNLENDİRMELERİ
+LOGIN_REDIRECT_URL = 'doktor_paneli' # Giriş yapınca kendi hastane panelimize git
+LOGOUT_REDIRECT_URL = 'login'        # Çıkış yapınca şık giriş ekranımıza dön
+LOGIN_URL = 'login'                  # Yetkisiz girişte şık ekrana yönlendir

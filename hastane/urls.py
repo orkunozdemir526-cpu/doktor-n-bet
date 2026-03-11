@@ -13,4 +13,6 @@ urlpatterns = [
     # urls.py içine ekleyin:
 path('nobet-verileri-json/', views.nobet_verileri_json, name='nobet_verileri_json'),
 path('planla/', views.nobet_planla, name='nobet_planla'),
+# urlpatterns listesinin içine ekleyin:
+path('izin-sil/<int:izin_id>/', views.izin_sil, name='izin_sil'),
 ]

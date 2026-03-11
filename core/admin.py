@@ -3,6 +3,6 @@ from django.contrib import admin
 # Eğer hata alırsan bu satırı kontrol et!
 from .models import Doktor, Nobet, IzinTalebi 
 
-admin.site.register(Doktor)
-admin.site.register(Nobet)
-admin.site.register(IzinTalebi)
+#admin.site.register(Doktor)
+#admin.site.register(Nobet)
+#admin.site.register(IzinTalebi)

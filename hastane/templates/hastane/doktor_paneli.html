@@ -51,7 +51,30 @@
             </div>
 
             <div class="sidebar">
-                <a href="{% url 'takas_olustur' %}" class="btn-new">+ Yeni Takas Talebi Oluştur <a href="{% url 'nobet_planla' %}" class="btn-new" style="background: #6f42c1; margin-left: 10px;">🪄 Otomatik Planla</a></a>
+                <a href="{% url 'takas_olustur' %}" class="btn-new">+ Yeni Takas Talebi Oluştur</a>
+                <div class="card">
+                    <h3>🏖️ İzin Taleplerim</h3>
+                    <form method="POST" style="margin-bottom: 15px; display: flex; gap: 10px;">
+                        {% csrf_token %}
+                        <input type="date" name="izin_tarih" required style="padding: 8px; border: 1px solid #ccc; border-radius: 4px; flex-grow: 1;">
+                        <button type="submit" style="background: #17a2b8; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold;">İzin Al</button>
+                    </form>
+                    
+                    {% for izin in izinler %}
+                        <div class="list-item" style="border-left-color: {% if izin.durum == 'onaylandi' %}#28a745{% elif izin.durum == 'reddedildi' %}#dc3545{% else %}#ffc107{% endif %}; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong>{{ izin.tarih|date:"d F Y" }}</strong><br>
+                                <small style="color: #666; font-weight: bold;">{{ izin.get_durum_display }}</small>
+                            </div>
+                            
+                            {% if izin.durum == 'beklemede' %}
+                                <a href="{% url 'izin_sil' izin.id %}" style="color: #dc3545; text-decoration: none; font-size: 20px; font-weight: bold; line-height: 1;" title="İptal Et">×</a>
+                            {% endif %}
+                        </div>
+                    {% empty %}
+                        <p style="font-size: 13px; color: #666;">Aktif izin talebiniz yok.</p>
+                    {% endfor %}
+                </div>
 
                 <div class="card">
                     <h3>📅 Yaklaşan Nöbetleriniz</h3>
