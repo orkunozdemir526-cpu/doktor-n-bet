@@ -1,0 +1,95 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-12 text-center">
+            <h2 class="display-6 fw-bold text-primary">
+                <i class="fa-solid fa-gauge-high me-2"></i>Hastane Yönetim Paneli
+            </h2>
+            <p class="text-muted">Nöbet planlama ve veritabanı işlemlerini buradan yönetebilirsiniz.</p>
+        </div>
+    </div>
+
+    <div class="row g-4 justify-content-center">
+        
+        <div class="col-md-5">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-header bg-white border-bottom-0 pt-4 pb-0 text-center">
+                    <div class="bg-primary bg-opacity-10 p-3 rounded-circle d-inline-block mb-2">
+                        <i class="fa-solid fa-wand-magic-sparkles fa-2x text-primary"></i>
+                    </div>
+                    <h4 class="card-title fw-bold mt-2">Otomatik Planlama</h4>
+                </div>
+                <div class="card-body text-center">
+                    <p class="card-text text-muted small px-3">
+                        Algoritmalar doktorların kıdem, izin ve bölüm kurallarına göre en uygun nöbet listesini hazırlar.
+                    </p>
+                    <hr class="my-4">
+                    
+                    <form method="post" class="px-3">
+                        {% csrf_token %}
+                        <div class="input-group mb-3">
+                            <span class="input-group-text bg-light"><i class="fa-regular fa-calendar"></i></span>
+                            <input type="number" name="yil" class="form-control" value="2026" placeholder="Yıl" required>
+                            <input type="number" name="ay" class="form-control" value="1" placeholder="Ay" min="1" max="12" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">
+                            <i class="fa-solid fa-gears me-2"></i> Planı Oluştur ve Kaydet
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-5">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-header bg-white border-bottom-0 pt-4 pb-0 text-center">
+                    <div class="bg-warning bg-opacity-10 p-3 rounded-circle d-inline-block mb-2">
+                        <i class="fa-solid fa-database fa-2x text-warning"></i>
+                    </div>
+                    <h4 class="card-title fw-bold mt-2">Veritabanı Yönetimi</h4>
+                </div>
+                <div class="card-body text-center d-flex flex-column">
+                    <p class="card-text text-muted small px-3">
+                        Doktor ekleme, çıkarma, izinleri düzenleme ve geçmiş nöbet kayıtlarını manuel inceleme işlemleri.
+                    </p>
+                    
+                    <div class="mt-auto px-3 pb-3">
+                        <a href="/admin/" target="_blank" class="btn btn-outline-dark w-100 py-2 fw-bold">
+                            <i class="fa-solid fa-lock me-2"></i> Admin Paneline Git
+                        </a>
+                        <small class="text-muted d-block mt-2" style="font-size: 11px;">
+                            (Doktor eklemek/silmek için buraya tıklayın)
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="row mt-5">
+        <div class="col-md-10 mx-auto">
+            <div class="card bg-light border-0">
+                <div class="card-body p-4 d-flex justify-content-around align-items-center text-center">
+                    <div>
+                        <h3 class="fw-bold text-dark mb-0">{% if doktor_sayisi %}{{ doktor_sayisi }}{% else %}--{% endif %}</h3>
+                        <span class="text-muted small">Toplam Doktor</span>
+                    </div>
+                    <div class="vr"></div>
+                    <div>
+                        <h3 class="fw-bold text-success mb-0">7/24</h3>
+                        <span class="text-muted small">Hizmet Süresi</span>
+                    </div>
+                    <div class="vr"></div>
+                    <div>
+                        <h3 class="fw-bold text-info mb-0">AI</h3>
+                        <span class="text-muted small">Destekli Algoritma</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

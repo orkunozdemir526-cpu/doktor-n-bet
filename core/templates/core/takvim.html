@@ -1,0 +1,84 @@
+{% extends 'core/base.html' %}
+{% load custom_filters %}  {% block extra_css %}
+<style>
+    .calendar-table th { background-color: #f8f9fa; color: #495057; font-weight: 600; text-align: center; padding: 15px; }
+    .calendar-table td { height: 120px; vertical-align: top; width: 14.28%; border: 1px solid #dee2e6; background: white; transition: background 0.2s; }
+    .calendar-table td:hover { background-color: #fcfcfc; }
+    .day-number { font-size: 1.2rem; font-weight: bold; color: #6c757d; display: block; margin-bottom: 5px; }
+    .nobet-badge { display: block; margin-bottom: 3px; font-size: 0.75rem; padding: 4px 6px; text-align: left; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; border-radius: 4px; color: white; }
+    .bolum-kirmizi { background-color: #e53e3e; }
+    .bolum-sari { background-color: #d69e2e; color: black !important; }
+    .bolum-yesil { background-color: #38a169; }
+    .today-cell { background-color: #ebf8ff !important; border: 2px solid #667eea !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow">
+    <div class="card-header bg-white py-3">
+        <div class="row align-items-center">
+            <div class="col-md-4">
+                <h4 class="mb-0 text-primary fw-bold"><i class="fa-solid fa-calendar-alt me-2"></i> {{ ay_ismi }} {{ yil }}</h4>
+            </div>
+            <div class="col-md-4 text-center">
+                <div class="btn-group">
+                    <a href="{% url 'takvim_gorunumu' yil=onceki_yil ay=onceki_ay %}" class="btn btn-outline-primary">
+                        <i class="fa-solid fa-chevron-left"></i> Önceki Ay
+                    </a>
+                    <a href="{% url 'takvim_gorunumu' yil=sonraki_yil ay=sonraki_ay %}" class="btn btn-outline-primary">
+                        Sonraki Ay <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="col-md-4 text-end">
+                <a href="{% url 'export_takvim_excel' yil=yil ay=ay %}" class="btn btn-success text-white">
+                    <i class="fa-solid fa-file-excel me-2"></i> Excel'e Aktar
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-bordered mb-0 calendar-table">
+                <thead>
+                    <tr>
+                        <th>Pazartesi</th><th>Salı</th><th>Çarşamba</th><th>Perşembe</th><th>Cuma</th><th>Cumartesi</th><th>Pazar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for hafta in ay_gunleri %}
+                        {% if forloop.first or hafta.0 == 1 or forloop.counter0|divisibleby:7 %}
+                            <tr>
+                        {% endif %}
+                        
+                        {% with gun_numarasi=hafta.0 haftanin_gunu=hafta.1 %}
+                            <td class="{% if gun_numarasi == 0 %}bg-light{% endif %}">
+                                {% if gun_numarasi != 0 %}
+                                    <span class="day-number">{{ gun_numarasi }}</span>
+                                    
+                                    {% for nobet in nobetler|get_item:gun_numarasi %}
+                                        <div class="nobet-badge {% if nobet.bolum == 'KIRMIZI' %}bolum-kirmizi{% elif nobet.bolum == 'SARI' %}bolum-sari{% else %}bolum-yesil{% endif %}" title="{{ nobet.doktor.ad_soyad }}">
+                                            {% if nobet.izin_iptal_edildi %}⚠️{% endif %}
+                                            <i class="fa-solid fa-user-md me-1"></i> {{ nobet.doktor.ad_soyad }}
+                                        </div>
+                                    {% endfor %}
+                                {% endif %}
+                            </td>
+                        {% endwith %}
+
+                        {% if forloop.last or forloop.counter|divisibleby:7 %}
+                            </tr>
+                        {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="mt-3 text-center">
+    <span class="badge bolum-kirmizi me-2">🔴 Kırmızı Alan</span>
+    <span class="badge bolum-sari me-2">🟡 Sarı Alan</span>
+    <span class="badge bolum-yesil">🟢 Yeşil Alan</span>
+</div>
+{% endblock %}

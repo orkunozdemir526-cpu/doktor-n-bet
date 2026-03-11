@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Yeni Takas Talebi</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 50px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h2 { color: #0056b3; margin-top: 0; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
+        
+        /* İŞTE KUTULARI TAM EKRAN YAPAN VE ŞIKLAŞTIRAN KOD BURASI */
+        select, textarea, input[type="text"] { 
+            width: 100%; 
+            padding: 10px; 
+            border: 1px solid #ccc; 
+            border-radius: 5px; 
+            box-sizing: border-box; 
+            font-size: 14px; 
+            font-family: inherit;
+        }
+        
+        /* Seçili kutunun etrafında mavi parlama efekti */
+        select:focus, textarea:focus { border-color: #80bdff; outline: 0; box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25); }
+        
+        .btn-submit { background-color: #28a745; color: white; padding: 12px 20px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; width: 100%; font-weight: bold; transition: background 0.3s; margin-top: 10px; }
+        .btn-submit:hover { background-color: #218838; }
+        .btn-back { display: block; text-align: center; margin-top: 20px; color: #6c757d; text-decoration: none; }
+        .btn-back:hover { text-decoration: underline; color: #333; }
+        .errorlist { color: #dc3545; list-style-type: none; padding: 0; margin: 5px 0 0 0; font-size: 13px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Yeni Nöbet Takas Talebi Oluştur</h2>
+    
+    <form method="POST" id="takasFormu" data-nobetler-url="{% url 'ajax_load_nobetler' %}">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label for="{{ form.verilecek_nobet.id_for_label }}">Verilecek Nöbet (Sizin Nöbetiniz):</label>
+            {{ form.verilecek_nobet }}
+            {{ form.verilecek_nobet.errors }}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.hedef_doktor.id_for_label }}">Hedef Doktor:</label>
+            {{ form.hedef_doktor }}
+            {{ form.hedef_doktor.errors }}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.alinacak_nobet.id_for_label }}">Alınacak Nöbet (Hedef Doktorun Nöbeti):</label>
+            {{ form.alinacak_nobet }}
+            {{ form.alinacak_nobet.errors }}
+            <small style="color: #6c757d; font-size: 12px; display: block; margin-top: 5px;">* Sadece seçtiğiniz doktorun nöbetleri listelenir. Nöbet almak istemiyorsanız boş bırakabilirsiniz.</small>
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.aciklama.id_for_label }}">Açıklama / Mazeret:</label>
+            {{ form.aciklama }}
+            {{ form.aciklama.errors }}
+        </div>
+        
+        <button type="submit" class="btn-submit">Talebi Gönder</button>
+    </form>
+    
+    <a href="{% url 'doktor_paneli' %}" class="btn-back">← Kontrol Paneline Dön</a>
+</div>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+<script>
+    // Kullanıcı 'hedef_doktor' kutusunda bir seçim yaptığında çalışır
+    $("#id_hedef_doktor").change(function () {
+        // Hangi URL'ye istek atacağımızı formun data niteliğinden alıyoruz
+        var url = $("#takasFormu").attr("data-nobetler-url");  
+        // Seçilen doktorun ID numarasını alıyoruz
+        var doktorId = $(this).val();  
+
+        // Eğer bir doktor seçildiyse (kutu boş değilse) arka planda sunucuya soruyoruz
+        if(doktorId) {
+            $.ajax({
+                url: url,
+                // Sunucuya "Bana şu ID'li doktorun nöbetlerini gönder" diyoruz
+                data: {
+                    'doktor_id': doktorId       
+                },
+                success: function (data) {
+                    // Sunucudan gelen HTML (nöbet listesi) verisini 'alinacak_nobet' kutusunun içine yapıştırıyoruz
+                    $("#id_alinacak_nobet").html(data);
+                }
+            });
+        } else {
+            // Eğer "---------" seçilirse alt kutuyu boşalt
+            $("#id_alinacak_nobet").html('<option value="">---------</option>');
+        }
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,23 @@
+<div class="card">
+    <h2>👑 Başhekim Nöbet Planlayıcı</h2>
+    <form method="POST">
+        {% csrf_token %}
+        <div class="form-group">
+            <label>Poliklinik Seçin</label>
+            <select name="poliklinik" class="form-control" required style="width: 100%; padding: 10px; border-radius: 5px; margin-bottom:15px;">
+                {% for poli in poliklinikler %}
+                    <option value="{{ poli }}">{{ poli }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Başlangıç Tarihi</label>
+            <input type="date" name="baslangic_tarihi" required>
+        </div>
+        <div class="form-group">
+            <label>Bitiş Tarihi</label>
+            <input type="date" name="bitis_tarihi" required>
+        </div>
+        <button type="submit" class="btn" style="background: #0056b3;">Planlamayı Başlat</button>
+    </form>
+</div>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Doktor Kontrol Paneli</title>
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        
+        /* Üst Bölüm */
+        .header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 15px 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .header h1 { margin: 0; font-size: 20px; color: #333; }
+        
+        /* Ana Dashboard Grid Yapısı */
+        .dashboard-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; align-items: start; }
+        
+        /* Kart Tasarımları */
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #e0e0e0; margin-bottom: 20px; }
+        .card h3 { margin-top: 0; font-size: 16px; color: #0056b3; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; margin-bottom: 15px; }
+        
+        /* Liste Elemanları */
+        .list-item { background: #f8f9fa; margin-bottom: 10px; padding: 12px; border-radius: 6px; border-left: 4px solid #6c757d; font-size: 14px; }
+        .status-beklemede { border-left-color: #ffc107; }
+        .status-onaylandi { border-left-color: #28a745; }
+        .status-reddedildi { border-left-color: #dc3545; }
+        
+        .logout-btn { background-color: #dc3545; color: white; padding: 8px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; border: none; cursor: pointer; }
+        .btn-new { background: #007bff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; margin-bottom: 15px; }
+        
+        /* Takvim boyutu kısıtlaması */
+        #calendar { max-height: 600px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    {% if doktor %}
+        <div class="header">
+            <h1>🏥 Dr. {{ doktor.kullanici.first_name }} {{ doktor.kullanici.last_name }} | {{ doktor.poliklinik }}</h1>
+            <form action="{% url 'cikis' %}" method="post">{% csrf_token %}<button type="submit" class="logout-btn">Çıkış Yap</button></form>
+        </div>
+
+        <div class="dashboard-grid">
+            
+            <div class="main-content">
+                <div class="card">
+                    <h3>🗓️ Nöbet Akışı</h3>
+                    <div id='calendar'></div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <a href="{% url 'takas_olustur' %}" class="btn-new">+ Yeni Takas Talebi Oluştur <a href="{% url 'nobet_planla' %}" class="btn-new" style="background: #6f42c1; margin-left: 10px;">🪄 Otomatik Planla</a></a>
+
+                <div class="card">
+                    <h3>📅 Yaklaşan Nöbetleriniz</h3>
+                    {% for nobet in nobetler|slice:":3" %} <div class="list-item" style="border-left-color: #0056b3;">
+                            <strong>{{ nobet.tarih|date:"d F Y" }}</strong> | {{ nobet.baslangic_saati|time:"H:i" }}
+                        </div>
+                    {% empty %}
+                        <p style="font-size: 14px;">Nöbetiniz bulunmuyor.</p>
+                    {% endfor %}
+                </div>
+
+                <div class="card">
+                    <h3>📥 Bana Gelen Talepler</h3>
+                    {% for talep in gelen_talepler %}
+                        <div class="list-item status-{{ talep.durum }}">
+                            <strong>Kimden:</strong> {{ talep.talep_eden_doktor }}<br>
+                            <strong>Tarih:</strong> {{ talep.verilecek_nobet.tarih|date:"d M" }}
+                            {% if talep.durum == 'beklemede' %}
+                                <div style="margin-top: 8px;">
+                                    <a href="{% url 'takas_cevapla' talep.id 'onayla' %}" style="color: green; font-weight: bold; text-decoration: none; margin-right: 10px;">Onayla</a>
+                                    <a href="{% url 'takas_cevapla' talep.id 'reddet' %}" style="color: red; font-weight: bold; text-decoration: none;">Reddet</a>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% empty %}
+                        <p style="font-size: 13px; color: #666;">Talep yok.</p>
+                    {% endfor %}
+                </div>
+
+                <div class="card">
+                    <h3>📤 Gönderdiğim Talepler</h3>
+                    {% for talep in giden_talepler %}
+                        <div class="list-item status-{{ talep.durum }}">
+                            <strong>Kime:</strong> {{ talep.hedef_doktor }} | <strong>Durum:</strong> {{ talep.get_durum_display }}
+                        </div>
+                    {% empty %}
+                        <p style="font-size: 13px; color: #666;">Gönderilen talep yok.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+        </div>
+    {% endif %}
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    var calendarEl = document.getElementById('calendar');
+    var calendar = new FullCalendar.Calendar(calendarEl, {
+      initialView: 'dayGridMonth',
+      locale: 'tr',
+      height: 500, // Takvimin boyunu sabitledik, böylece aşağı kaymaz
+      headerToolbar: { left: 'prev,next', center: 'title', right: 'today' },
+      events: '/hastane/nobet_verileri_json/',
+    });
+    calendar.render();
+  });
+</script>
+
+</body>
+</html>

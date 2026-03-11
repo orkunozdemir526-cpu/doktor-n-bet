@@ -1,0 +1,93 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <i class="fa-solid fa-id-card me-2 text-primary"></i> Doktor Profili
+            </div>
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <div class="display-1 text-primary mb-2"><i class="fa-solid fa-user-md"></i></div>
+                    <h4>Dr. {{ doktor.ad_soyad }}</h4>
+                    <span class="badge bg-secondary">{{ doktor.get_kidem_display }}</span>
+                </div>
+                <hr>
+                <h5 class="mt-4 mb-3 text-start">🗓️ İzin Talep Et</h5>
+                <form method="post" class="text-start">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Tarih Seçiniz:</label>
+                        <input type="date" name="tarih" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-custom w-100">
+                        <i class="fa-solid fa-paper-plane me-2"></i> Talebi Gönder
+                    </button>
+                    <small class="text-muted d-block mt-2">* Aylık maksimum 4 gün izin hakkınız vardır.</small>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fa-solid fa-list-check me-2 text-primary"></i> {{ gosterilecek_ay_ismi }} Ayı İzin Taleplerim</span>
+                
+                <div class="btn-group">
+                    <a href="{% url 'doktor_paneli' yil=onceki_yil ay=onceki_ay %}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </a>
+                    <a href="{% url 'doktor_paneli' yil=sonraki_yil ay=sonraki_ay %}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if mevcut_izinler %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Tarih</th>
+                                    <th>Durum</th>
+                                    <th>İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for izin in mevcut_izinler %}
+                                <tr>
+                                    <td>
+                                        <i class="fa-regular fa-calendar me-2 text-muted"></i>
+                                        <strong>{{ izin.tarih|date:"d F Y" }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ izin.tarih|date:"l" }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success">Onaylandı</span>
+                                    </td>
+                                    <td>
+                                        <form action="{% url 'izin_sil' izin.id %}" method="post" class="d-inline" onsubmit="return confirm('Bu izin talebini silmek istediğinize emin misiniz?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="fa-solid fa-trash"></i> İptal Et
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info text-center mt-3">
+                        <i class="fa-solid fa-info-circle fa-2x mb-3 d-block"></i>
+                        Bu ay için henüz bir izin talebiniz bulunmamaktadır.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
