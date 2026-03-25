@@ -2,34 +2,135 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Planlayıcı</title>
+    <title>Otomatik Nöbet Planlayıcı</title>
+    <style>
+        /* --- GENEL TASARIM --- */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; transition: background-color 0.3s; }
+        .planlayici-container { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); width: 100%; max-width: 450px; text-align: center; }
+        h2 { color: #333; margin-top: 0; margin-bottom: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        p.subtitle { color: #777; font-size: 14px; margin-bottom: 30px; }
+        
+        /* Form Alanları Tasarımı */
+        .form-group { text-align: left; margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; color: #555; font-weight: 600; font-size: 14px; }
+        .form-group select, .form-group input[type="date"] { width: 100%; padding: 12px; border: 1px solid #ced4da; border-radius: 6px; box-sizing: border-box; font-size: 15px; outline: none; background-color: #fff; color: #333; transition: border-color 0.3s; }
+        .form-group select:focus, .form-group input:focus { border-color: #4a148c; }
+        
+        /* Butonlar */
+        .btn-planla { background-color: #4a148c; color: white; border: none; padding: 15px; width: 100%; border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: bold; transition: background 0.3s; margin-top: 10px; }
+        .btn-planla:hover { background-color: #310b66; }
+        .btn-planla:disabled { background-color: #8a5bc4; cursor: not-allowed; }
+        .back-link { display: inline-block; margin-top: 25px; color: #666; text-decoration: none; font-size: 14px; font-weight: 600; transition: color 0.3s; }
+        .back-link:hover { color: #333; }
+
+        /* --- GECE MODU --- */
+        body.dark-mode { background-color: #121212; }
+        body.dark-mode .planlayici-container { background: #1e1e1e; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        body.dark-mode h2 { color: #f1f1f1; }
+        body.dark-mode p.subtitle { color: #aaa; }
+        body.dark-mode .form-group label { color: #bbb; }
+        body.dark-mode .form-group select, body.dark-mode .form-group input { background-color: #2a2a2a; color: #f1f1f1; border-color: #444; }
+        body.dark-mode .form-group select:focus, body.dark-mode .form-group input:focus { border-color: #a370f7; }
+        body.dark-mode .btn-planla { background-color: #5c20a8; }
+        body.dark-mode .btn-planla:hover { background-color: #7938cf; }
+
+        /* --- YÜKLEME EKRANI SPINNER --- */
+        #yapayZekaLoading { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; flex-direction: column; justify-content: center; align-items: center; color: white; }
+        .spinner { border: 6px solid rgba(255, 255, 255, 0.15); border-top: 6px solid #a370f7; border-radius: 50%; width: 65px; height: 65px; animation: spin 1s linear infinite; margin-bottom: 25px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Hata mesajı tasarımı */
+        .error-msg { background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px; margin-bottom: 20px; font-size: 14px; border: 1px solid #f5c6cb; }
+        body.dark-mode .error-msg { background-color: #440000; color: #ffb3b3; border-color: #660000; }
+    </style>
 </head>
-<body style="font-family:sans-serif; background:#f4f7f6; display:flex; justify-content:center; padding-top:50px;">
-    <div style="background:white; padding:30px; border-radius:8px; width:400px; box-shadow:0 4px 6px rgba(0,0,0,0.1);">
-        <h2 style="color:#6f42c1; margin-top: 0; text-align: center;">🪄 Otomatik Planlayıcı</h2>
-        <p style="text-align: center; color: #666; font-size: 14px; margin-bottom: 20px;">Planlama bittiğinde Excel dosyası otomatik iner.</p>
-        
-        {% if error %}<p style="color:white; background: #dc3545; padding: 10px; border-radius: 4px; text-align: center;">{{ error }}</p>{% endif %}
-        
-        <form method="POST">
+<body>
+
+    <div class="planlayici-container">
+        <h2>🪄 Otomatik Planlayıcı</h2>
+        <p class="subtitle">Planlama bittiğinde Excel dosyası otomatik iner.</p>
+
+        {% if error %}
+            <div class="error-msg">⚠️ {{ error }}</div>
+        {% endif %}
+
+        <form method="POST" action="{% url 'nobet_planla' %}" id="planlamaFormu">
             {% csrf_token %}
-            <label style="font-weight: bold; color: #333;">Poliklinik Seçin</label><br>
-            <select name="poliklinik_id" style="width:100%; padding:10px; margin:8px 0 15px 0; border: 1px solid #ccc; border-radius: 4px;" required>
-                <option value="">-- Poliklinik Seçin --</option>
-                {% for poli in poliklinikler %}
-                    <option value="{{ poli.id }}">{{ poli.isim }}</option>
-                {% endfor %}
-            </select><br>
             
-            <label style="font-weight: bold; color: #333;">Başlangıç Tarihi</label>
-            <input type="date" name="baslangic_tarihi" required style="width:100%; padding:10px; margin:8px 0 15px 0; border: 1px solid #ccc; border-radius: 4px;"><br>
-            
-            <label style="font-weight: bold; color: #333;">Bitiş Tarihi</label>
-            <input type="date" name="bitis_tarihi" required style="width:100%; padding:10px; margin:8px 0 15px 0; border: 1px solid #ccc; border-radius: 4px;"><br>
-            
-            <button type="submit" style="width:100%; background:#6f42c1; color:white; padding:12px; border:none; border-radius:4px; cursor:pointer; font-weight: bold; font-size: 15px; margin-top: 10px;">Planla ve Excel İndir 📊</button>
+            <div class="form-group">
+                <label>Poliklinik Seçin</label>
+                <select name="poliklinik_id" required>
+                    {% for p in poliklinikler %}
+                        <option value="{{ p.id }}">{{ p.isim }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Başlangıç Tarihi</label>
+                <input type="date" name="baslangic_tarihi" required>
+            </div>
+
+            <div class="form-group">
+                <label>Bitiş Tarihi</label>
+                <input type="date" name="bitis_tarihi" required>
+            </div>
+
+            <button type="submit" class="btn-planla" id="submitBtn">Planla ve Excel İndir 📊</button>
         </form>
-        <a href="/admin/hastane/nobet/" style="display:block; text-align:center; margin-top:20px; color:#666; text-decoration: none;">← Panele Dön</a>
+
+        <div class="return-link" style="margin-top: 20px; text-align: center;">
+    {% if user.is_superuser %}
+        <a href="/admin/" style="color: #bbb; text-decoration: none; font-size: 0.9rem;">
+            ← Admin Paneline Dön
+        </a>
+    {% else %}
+        <a href="{% url 'doktor_paneli' %}" style="color: #bbb; text-decoration: none; font-size: 0.9rem;">
+            ← Panele Dön
+        </a>
+    {% endif %}
+</div>
+
+    <div id="yapayZekaLoading">
+        <div class="spinner"></div>
+        <h3 style="margin:0; font-size:24px; font-weight:600;">🧠 Yapay Zeka Nöbetleri Planlıyor...</h3>
+        <p style="color:#ccc; margin-top:12px;">Lütfen bekleyin, adaletli bir dağılım için ihtimaller hesaplanıyor.</p>
     </div>
+
+    <script>
+        // Gece Modu
+        if(localStorage.getItem('hastane_tema') === 'dark') {
+            document.body.classList.add('dark-mode');
+        }
+
+        // Form Gönderimi (Tarayıcıyı engellemeden, sadece animasyonu göster/gizle)
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('planlamaFormu');
+            const loadingEkrani = document.getElementById('yapayZekaLoading');
+            const btn = document.getElementById('submitBtn');
+            
+            if(form) {
+                form.addEventListener('submit', function() {
+                    // Perdeyi indir
+                    loadingEkrani.style.display = 'flex';
+                    btn.disabled = true;
+                    btn.innerText = 'Hesaplanıyor... ⏳';
+                    
+                    // İşlem bittikten sonra perdeyi kaldır (Excel inince sayfa yenilenmediği için)
+                    setTimeout(function() {
+                        loadingEkrani.style.display = 'none';
+                        btn.disabled = false;
+                        btn.innerText = 'Planla ve Excel İndir 📊';
+                    }, 2000);
+                });
+            }
+
+            // Ekstra Güvenlik: Kullanıcı sekmeye geri döndüğünde veya ekrana tıkladığında perdeyi kesin kaldır
+            window.addEventListener('focus', function() {
+                loadingEkrani.style.display = 'none';
+                if(btn) { btn.disabled = false; btn.innerText = 'Planla ve Excel İndir 📊'; }
+            });
+        });
+    </script>
 </body>
 </html>

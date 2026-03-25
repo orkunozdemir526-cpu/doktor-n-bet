@@ -1,0 +1,74 @@
+{% extends "admin/login.html" %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <style>
+        /* 1. Django'nun kendi butonunu kesin ve net olarak gizle */
+        #theme-toggle, .theme-toggle { 
+            display: none !important; 
+        }
+        
+        /* 2. Sadece Güneş/Ay barındıran bizim özel butonumuz */
+        #custom-theme-btn {
+            background: transparent;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0 10px;
+            transition: transform 0.2s ease;
+        }
+        #custom-theme-btn:hover { 
+            transform: scale(1.2); 
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Saniyede 20 kez çalışarak Django'nun butonunu avlayan bir döngü kuruyoruz
+            const avci = setInterval(() => {
+                const orjinalBtn = document.querySelector('#theme-toggle') || document.querySelector('.theme-toggle');
+                
+                // Eğer orjinal butonu bulursak ve kendi butonumuzu henüz eklemediysek:
+                if (orjinalBtn && !document.getElementById('custom-theme-btn')) {
+                    
+                    // Orjinali tamamen sakla
+                    orjinalBtn.style.display = 'none'; 
+                    
+                    // 3. Bizim asil butonu yarat
+                    const yeniBtn = document.createElement('button');
+                    yeniBtn.id = 'custom-theme-btn';
+                    yeniBtn.type = 'button'; // Giriş formunu yanlışlıkla tetiklemesin
+                    yeniBtn.title = "Gece / Gündüz";
+                    
+                    // 4. Modu kontrol et (Auto ise anında karanlığa çek)
+                    let aktifTema = localStorage.getItem('theme') || 'dark';
+                    if (aktifTema === 'auto') {
+                        aktifTema = 'dark';
+                        localStorage.setItem('theme', 'dark');
+                        document.documentElement.dataset.theme = 'dark';
+                    }
+                    
+                    // İkonu belirle
+                    yeniBtn.innerHTML = aktifTema === 'dark' ? '☀️' : '🌙';
+                    
+                    // 5. Tıklama olayı: Sadece Güneş ve Ay arası git-gel
+                    yeniBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        let yeni = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+                        document.documentElement.dataset.theme = yeni;
+                        localStorage.setItem('theme', yeni);
+                        yeniBtn.innerHTML = yeni === 'dark' ? '☀️' : '🌙';
+                    });
+                    
+                    // Bizim butonu, orjinal butonun hemen yanına yerleştir
+                    orjinalBtn.parentNode.insertBefore(yeniBtn, orjinalBtn.nextSibling);
+                    
+                    // Avı başarıyla tamamladık, döngüyü durdurabiliriz
+                    clearInterval(avci);
+                }
+            }, 50); // 50 milisaniyede bir kontrol et (İnsan gözü bunu fark edemez bile)
+        });
+    </script>
+{% endblock %}

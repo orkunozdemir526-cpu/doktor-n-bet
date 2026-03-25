@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from datetime import timedelta
 
 # 1. Poliklinik (Bölüm) Modeli
 class Poliklinik(models.Model):
@@ -55,6 +56,33 @@ class Nobet(models.Model):
 
     def __str__(self):
         return f"{self.doktor} | {self.tarih} [{self.get_bolum_display()}]"
+    def clean(self):
+        super().clean() # Önce Django'nun kendi temel kontrollerini çalıştır
+
+        # Eğer tarih veya doktor seçilmemişse boşuna kontrol etme (zaten hata verecektir)
+        if not self.doktor or not self.tarih:
+            return
+
+        # KURAL 1: AYNI GÜN ÇİFTE NÖBET KONTROLÜ
+        # Bu doktorun aynı gün başka bir nöbeti var mı? (Kendisi hariç - güncelleme yapıyorsak diye)
+        ayni_gun_nobet = Nobet.objects.filter(doktor=self.doktor, tarih=self.tarih).exclude(pk=self.pk)
+        if ayni_gun_nobet.exists():
+            raise ValidationError(f"⛔ İŞLEM İPTAL EDİLDİ: {self.doktor.kullanici.get_full_name()} adlı doktorun {self.tarih} tarihinde zaten bir nöbeti bulunuyor!")
+
+        # KURAL 2: İZİNLİ GÜNE NÖBET YAZMA KONTROLÜ
+        # İzinTalebi modelini kontrol et (Eğer senin izin modelinin adı farklıysa burayı düzelt)
+        from .models import IzinTalebi # Dosya içinden modeli çağırıyoruz
+        izinli_mi = IzinTalebi.objects.filter(doktor=self.doktor, tarih=self.tarih, durum='onaylandi').exists()
+        if izinli_mi:
+            raise ValidationError(f"⛔ İŞLEM İPTAL EDİLDİ: {self.doktor.kullanici.get_full_name()} adlı doktor {self.tarih} tarihinde İZİNLİ olduğu için nöbet yazılamaz!")
+
+        # KURAL 3: DİNLENME KURALI (ÜST ÜSTE NÖBET)
+        dun = self.tarih - timedelta(days=1)
+        yarin = self.tarih + timedelta(days=1)
+        ardisik_nobet = Nobet.objects.filter(doktor=self.doktor, tarih__in=[dun, yarin]).exclude(pk=self.pk).exists()
+        
+        if ardisik_nobet:
+            raise ValidationError(f"⚠️ DİKKAT (DİNLENME KURALI): {self.doktor.kullanici.get_full_name()} adlı doktorun bir gün önce veya bir gün sonra zaten nöbeti var! Üst üste nöbet yazılamaz.")
 
 # ... (Aşağıdaki NobetTakas modeli kodlarınız aynen kalabilir) ...
 
@@ -135,3 +163,4 @@ class IzinTalebi(models.Model):
 
     def __str__(self):
         return f"{self.doktor} - İzin: {self.tarih} ({self.get_durum_display()})"
+    

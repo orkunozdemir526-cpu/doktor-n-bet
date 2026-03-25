@@ -1,0 +1,149 @@
+{% extends "admin/change_list.html" %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <style>
+    /* 1. ANA KAPSAYICI */
+        #content { 
+            padding: 20px 30px !important; 
+            position: relative !important; /* 🌟 GİZLİ SİLAH: Butonları buraya kancalayacağız */
+        }
+
+        /* 2. BUTONLAR (Float iptal, Absolute ile havaya kaldırdık) */
+        .object-tools {
+            position: absolute !important;
+            top: 20px !important;
+            right: 30px !important;
+            display: flex !important;
+            gap: 15px !important;
+            margin: 0 !important; /* Eski negatif ayarları sildik */
+            float: none !important; /* 🌟 SÜZ KUTUSUNU AŞAĞI İTEN SUÇLUYU İPTAL ETTİK */
+            z-index: 10 !important;
+        }
+        
+        .object-tools li { list-style-type: none !important; }
+        
+        .object-tools a {
+            display: flex !important;
+            align-items: center !important;
+            background: linear-gradient(135deg, #11998e, #38ef7d) !important;
+            color: white !important;
+            border-radius: 30px !important;
+            padding: 10px 20px !important;
+            font-size: 13px !important;
+            font-weight: bold !important;
+            text-transform: uppercase !important;
+            box-shadow: 0 4px 15px rgba(56, 239, 125, 0.3) !important;
+            transition: transform 0.3s ease, box-shadow 0.3s ease !important;
+            border: none !important;
+        }
+
+        .object-tools a:hover {
+            transform: translateY(-3px) !important;
+            box-shadow: 0 8px 20px rgba(56, 239, 125, 0.5) !important;
+        }
+
+        /* 🌟 3. İŞTE GERÇEK ÇÖZÜM: DJANGO'NUN GİZLİ KUTUSU 🌟 */
+        #changelist {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: flex-start !important;
+            gap: 20px !important; 
+            background: transparent !important; 
+            border: none !important;
+            box-shadow: none !important;
+            margin-top: 20px !important; /* Tablo ile üst başlık arasına boşluk */
+            clear: both !important;
+        }
+
+        /* SOL TARAF: Arama, Tarih ve Tabloyu kapsayan GİZLİ KUTU */
+        .changelist-form-container {
+            flex: 1 1 0% !important; 
+            min-width: 0 !important; 
+            display: flex !important;
+            flex-direction: column !important; 
+            gap: 15px !important; 
+        }
+
+        /* SAĞ TARAF: Süz Kartı */
+        #changelist-filter {
+            flex: 0 0 280px !important; 
+            background: var(--body-bg) !important;
+            border-radius: 12px !important;
+            border: 1px solid var(--border-color) !important;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
+            margin: 0 !important; /* 🌟 KUSURSUZ HİZALAMA BURADA SAĞLANIYOR */
+        }
+        
+        #changelist-filter h2 { 
+            background: var(--primary) !important; 
+            color: white !important; 
+            padding: 12px 20px !important; 
+            font-size: 14px !important; 
+            margin: 0 !important;
+        }
+
+        #changelist-filter h3, #changelist-filter ul { padding-left: 20px !important; padding-right: 20px !important; }
+
+        /* 4. İÇ KARTLARIN (Arama, Tarih ve Tablo) TASARIMI */
+        #toolbar, .date-hierarchy, #changelist-form {
+            background: var(--body-bg) !important;
+            border-radius: 12px !important;
+            border: 1px solid var(--border-color) !important;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
+            margin: 0 !important;
+            width: 100% !important;
+        }
+
+        /* Arama Çubuğu Özel Ayar */
+        #toolbar { padding: 12px 20px !important; }
+        #toolbar input[type="text"] {
+            border-radius: 20px !important;
+            padding: 8px 15px !important;
+            border: 1px solid var(--border-color) !important;
+            background: var(--darkened-bg) !important;
+            color: var(--body-fg) !important;
+            min-width: 250px;
+        }
+
+        /* Tarih Barı Özel Ayar */
+        .date-hierarchy { padding: 12px 20px !important; font-size: 14px !important; }
+
+        /* Tablonun Taştığı Durumlar İçin Korumalar */
+        #changelist-form { overflow: hidden !important; }
+        .results { 
+            overflow-x: auto !important; 
+            width: 100% !important; 
+        }
+
+        /* 5. TABLO İÇİ VE HOVER EFEKTİ */
+        #changelist table { width: 100% !important; border-collapse: collapse !important; }
+        
+        #changelist table thead th {
+            background: var(--primary) !important;
+            color: var(--primary-button-text-color) !important;
+            padding: 12px 15px !important;
+            font-size: 13px !important;
+            border: none !important;
+            white-space: nowrap !important;
+        }
+
+        #changelist table tbody td, #changelist table tbody th {
+            padding: 12px 15px !important;
+            border-bottom: 1px solid var(--border-color) !important;
+            color: var(--body-fg) !important;
+            font-size: 13px !important;
+            transition: all 0.2s ease !important;
+        }
+
+        #changelist table tbody tr:hover td, 
+        #changelist table tbody tr:hover th {
+            background-color: rgba(56, 239, 125, 0.08) !important; 
+            cursor: pointer;
+        }
+        
+        #changelist table tbody tr:hover th {
+            padding-left: 22px !important; 
+        }
+    </style>
+{% endblock %}

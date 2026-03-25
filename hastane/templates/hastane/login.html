@@ -3,21 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <title>Hastane Sistemi - Giriş</title>
+    
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js" as="script">
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/chart.js" as="script">
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/sweetalert2@11" as="script">
+
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #e9ecef; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; }
-        .login-container { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #e9ecef; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; transition: background-color 0.3s; }
+        .login-container { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; transition: background-color 0.3s, box-shadow 0.3s; }
         .logo { width: 80px; height: 80px; background-color: #0056b3; color: white; border-radius: 50%; display: inline-flex; justify-content: center; align-items: center; font-size: 36px; margin-bottom: 20px; }
         h2 { color: #333; margin-top: 0; margin-bottom: 30px; font-weight: 600; }
         .form-group { margin-bottom: 20px; text-align: left; }
         label { display: block; margin-bottom: 8px; color: #555; font-weight: bold; font-size: 14px; }
-        input[type="text"], input[type="password"] { width: 100%; padding: 12px; border: 1px solid #ced4da; border-radius: 5px; box-sizing: border-box; font-size: 15px; }
+        input[type="text"], input[type="password"] { width: 100%; padding: 12px; border: 1px solid #ced4da; border-radius: 5px; box-sizing: border-box; font-size: 15px; transition: background-color 0.3s, color 0.3s; }
         input:focus { border-color: #80bdff; outline: none; box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25); }
         .btn-login { background-color: #0056b3; color: white; border: none; padding: 12px; width: 100%; border-radius: 5px; font-size: 16px; cursor: pointer; font-weight: bold; transition: background 0.3s; }
         .btn-login:hover { background-color: #004494; }
         .error-msg { color: #dc3545; background-color: #f8d7da; padding: 10px; border-radius: 5px; margin-bottom: 20px; font-size: 14px; }
+
+        /* --- GECE MODU STİLLERİ --- */
+        body.dark-mode { background-color: #121212; }
+        body.dark-mode .login-container { background: #1e1e1e; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        body.dark-mode h2 { color: #f1f1f1; }
+        body.dark-mode label { color: #bbb; }
+        body.dark-mode input[type="text"], body.dark-mode input[type="password"] { background-color: #2a2a2a; color: #f1f1f1; border-color: #444; }
+        body.dark-mode input:focus { border-color: #66b2ff; }
+        
+        .theme-toggle { position: absolute; top: 20px; right: 20px; background: none; border: none; font-size: 24px; cursor: pointer; padding: 0; transition: transform 0.3s; }
     </style>
 </head>
 <body>
+
+<button class="theme-toggle" id="darkModeToggle" title="Gece/Gündüz Modu">🌙</button>
 
 <div class="login-container">
     <div class="logo">🏥</div>
@@ -29,7 +47,7 @@
         </div>
     {% endif %}
 
-    <form method="POST">
+    <form method="POST" onsubmit="document.getElementById('loginBtn').innerText='Giriş Yapılıyor... ⏳';">
         {% csrf_token %}
         <div class="form-group">
             <label for="id_username">Kullanıcı Adı</label>
@@ -39,9 +57,32 @@
             <label for="id_password">Parola</label>
             {{ form.password }}
         </div>
-        <button type="submit" class="btn-login">Sisteme Giriş Yap</button>
+        <button type="submit" class="btn-login" id="loginBtn">Sisteme Giriş Yap</button>
     </form>
 </div>
+
+<script>
+    const toggleBtn = document.getElementById('darkModeToggle');
+    const body = document.body;
+
+    if(localStorage.getItem('hastane_tema') === 'dark') {
+        body.classList.add('dark-mode');
+        toggleBtn.textContent = '☀️';
+    }
+
+    toggleBtn.addEventListener('click', () => {
+        body.classList.toggle('dark-mode');
+        if(body.classList.contains('dark-mode')) {
+            localStorage.setItem('hastane_tema', 'dark');
+            toggleBtn.textContent = '☀️';
+            toggleBtn.style.transform = "rotate(180deg)";
+        } else {
+            localStorage.setItem('hastane_tema', 'light');
+            toggleBtn.textContent = '🌙';
+            toggleBtn.style.transform = "rotate(0deg)";
+        }
+    });
+</script>
 
 </body>
 </html>

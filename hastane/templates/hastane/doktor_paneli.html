@@ -3,33 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <title>Doktor Kontrol Paneli</title>
-    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
+    
+
+    
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
         .container { max-width: 1400px; margin: 0 auto; }
-        
-        /* Üst Bölüm */
         .header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 15px 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .header h1 { margin: 0; font-size: 20px; color: #333; }
-        
-        /* Ana Dashboard Grid Yapısı */
         .dashboard-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; align-items: start; }
-        
-        /* Kart Tasarımları */
         .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #e0e0e0; margin-bottom: 20px; }
         .card h3 { margin-top: 0; font-size: 16px; color: #0056b3; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; margin-bottom: 15px; }
-        
-        /* Liste Elemanları */
         .list-item { background: #f8f9fa; margin-bottom: 10px; padding: 12px; border-radius: 6px; border-left: 4px solid #6c757d; font-size: 14px; }
         .status-beklemede { border-left-color: #ffc107; }
         .status-onaylandi { border-left-color: #28a745; }
         .status-reddedildi { border-left-color: #dc3545; }
-        
         .logout-btn { background-color: #dc3545; color: white; padding: 8px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; border: none; cursor: pointer; }
-        .btn-new { background: #007bff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; margin-bottom: 15px; }
-        
-        /* Takvim boyutu kısıtlaması */
+        .btn-new { background: #007bff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; margin-bottom: 15px; width: 100%; box-sizing: border-box; text-align: center; }
         #calendar { max-height: 600px; }
+        /* --- GECE MODU (DARK MODE) RENKLERİ --- */
+        body.dark-mode { background-color: #121212; color: #f1f1f1; }
+        body.dark-mode .header { background: #1e1e1e; border-bottom: 1px solid #333; }
+        body.dark-mode .header h1 { color: #f1f1f1; }
+        body.dark-mode .card { background: #1e1e1e; border-color: #333; box-shadow: none; }
+        body.dark-mode .card h3 { color: #66b2ff; border-bottom-color: #333; }
+        body.dark-mode .list-item { background: #2a2a2a; }
+        body.dark-mode .list-item strong { color: #fff; }
+        body.dark-mode p, body.dark-mode small { color: #bbb !important; }
+        /* Takvimdeki nöbet kutucuklarını ortala ve kalın yap */
+        .fc-event { text-align: center !important; font-weight: bold !important; border: none !important; padding: 2px !important; }
+        /* --- DİNAMİK AVATAR TASARIMLARI --- */
+        .avatar { width: 45px; height: 45px; border-radius: 50%; background: linear-gradient(135deg, #6f42c1, #0056b3); color: white; display: flex; justify-content: center; align-items: center; font-size: 18px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); flex-shrink: 0; }
+        .avatar-sm { width: 35px; height: 35px; border-radius: 50%; background: linear-gradient(135deg, #17a2b8, #0056b3); color: white; display: flex; justify-content: center; align-items: center; font-size: 14px; font-weight: bold; flex-shrink: 0; }
+        /* Takvimin Gece Moduna Uyumu */
+        body.dark-mode .fc-theme-standard td, body.dark-mode .fc-theme-standard th, body.dark-mode .fc-theme-standard .fc-scrollgrid { border-color: #444; }
+        body.dark-mode .fc-col-header-cell-cushion, body.dark-mode .fc-daygrid-day-number { color: #f1f1f1; text-decoration: none; }
+        body.dark-mode .fc-button-primary { background-color: #333; border-color: #444; }
+        body.dark-mode .fc-button-primary:not(:disabled).fc-button-active, body.dark-mode .fc-button-primary:not(:disabled):active { background-color: #555; border-color: #666; }
     </style>
 </head>
 <body>
@@ -37,13 +47,32 @@
 <div class="container">
     {% if doktor %}
         <div class="header">
-            <h1>🏥 Dr. {{ doktor.kullanici.first_name }} {{ doktor.kullanici.last_name }} | {{ doktor.poliklinik }}</h1>
-            <form action="{% url 'cikis' %}" method="post">{% csrf_token %}<button type="submit" class="logout-btn">Çıkış Yap</button></form>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <div class="avatar" title="Profiliniz">{{ doktor.kullanici.first_name|first|upper }}{{ doktor.kullanici.last_name|first|upper }}</div>
+                <h1>Dr. {{ doktor.kullanici.first_name }} {{ doktor.kullanici.last_name }} | {{ doktor.poliklinik }}</h1>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <button id="darkModeToggle" style="background:none; border:none; font-size:24px; cursor:pointer; padding:0; transition: transform 0.3s;" title="Gece/Gündüz Modu">🌙</button>
+                <form action="{% url 'cikis' %}" method="post" style="margin:0;">{% csrf_token %}<button type="submit" class="logout-btn">Çıkış Yap</button></form>
+            </div>
         </div>
 
         <div class="dashboard-grid">
             
             <div class="main-content">
+                
+                <div class="card">
+                    <h3>📊 Nöbet Dağılım İstatistikleri (Toplam: {{ toplam_nobet }} Nöbet)</h3>
+                    {% if toplam_nobet > 0 %}
+                        <div style="position: relative; height:250px; width:100%; display: flex; justify-content: center;">
+                            <canvas id="nobetGrafigi"></canvas>
+                        </div>
+                    {% else %}
+                        <p style="font-size: 14px; color: #666; text-align: center;">Henüz planlanmış bir nöbetiniz bulunmuyor.</p>
+                    {% endif %}
+                </div>
+
                 <div class="card">
                     <h3>🗓️ Nöbet Akışı</h3>
                     <div id='calendar'></div>
@@ -52,6 +81,7 @@
 
             <div class="sidebar">
                 <a href="{% url 'takas_olustur' %}" class="btn-new">+ Yeni Takas Talebi Oluştur</a>
+
                 <div class="card">
                     <h3>🏖️ İzin Taleplerim</h3>
                     <form method="POST" style="margin-bottom: 15px; display: flex; gap: 10px;">
@@ -66,7 +96,6 @@
                                 <strong>{{ izin.tarih|date:"d F Y" }}</strong><br>
                                 <small style="color: #666; font-weight: bold;">{{ izin.get_durum_display }}</small>
                             </div>
-                            
                             {% if izin.durum == 'beklemede' %}
                                 <a href="{% url 'izin_sil' izin.id %}" style="color: #dc3545; text-decoration: none; font-size: 20px; font-weight: bold; line-height: 1;" title="İptal Et">×</a>
                             {% endif %}
@@ -78,26 +107,51 @@
 
                 <div class="card">
                     <h3>📅 Yaklaşan Nöbetleriniz</h3>
-                    {% for nobet in nobetler|slice:":3" %} <div class="list-item" style="border-left-color: #0056b3;">
+                    {% for nobet in nobetler|slice:":3" %} 
+                        <div class="list-item" style="border-left-color: #0056b3;">
                             <strong>{{ nobet.tarih|date:"d F Y" }}</strong> | {{ nobet.baslangic_saati|time:"H:i" }}
+                            <a href="https://calendar.google.com/calendar/render?action=TEMPLATE&text={{ nobet.get_bolum_display|urlencode }}+N%C3%B6beti&dates={{ nobet.tarih|date:'Ymd' }}T{{ nobet.baslangic_saati|time:'His' }}/{{ nobet.tarih|date:'Ymd' }}T{{ nobet.bitis_saati|time:'His' }}&details=Kolay+gelsin+Doktorum!+Bug%C3%BCn+{{ nobet.get_bolum_display|urlencode }}+b%C3%B6l%C3%BCm%C3%BCnde+n%C3%B6bet%C3%A7isiniz.&location=Hastane" 
+   target="_blank" 
+   style="
+       display: inline-block;
+       background: rgba(66, 133, 244, 0.1); 
+       color: #4285F4; 
+       padding: 4px 10px;
+       border-radius: 12px;
+       text-decoration: none;
+       font-size: 11px;
+       font-weight: bold;
+       border: 1px solid rgba(66, 133, 244, 0.4);
+       transition: all 0.2s ease;
+       float: right; /* Kartın sağına yaslar */
+       margin-top: -2px;
+   "
+   onmouseover="this.style.background='#4285F4'; this.style.color='#fff';"
+   onmouseout="this.style.background='rgba(66, 133, 244, 0.1)'; this.style.color='#4285F4';">
+    📅 Takvime Ekle
+</a>
                         </div>
                     {% empty %}
                         <p style="font-size: 14px;">Nöbetiniz bulunmuyor.</p>
                     {% endfor %}
                 </div>
+                
 
                 <div class="card">
                     <h3>📥 Bana Gelen Talepler</h3>
                     {% for talep in gelen_talepler %}
-                        <div class="list-item status-{{ talep.durum }}">
-                            <strong>Kimden:</strong> {{ talep.talep_eden_doktor }}<br>
-                            <strong>Tarih:</strong> {{ talep.verilecek_nobet.tarih|date:"d M" }}
-                            {% if talep.durum == 'beklemede' %}
-                                <div style="margin-top: 8px;">
-                                    <a href="{% url 'takas_cevapla' talep.id 'onayla' %}" style="color: green; font-weight: bold; text-decoration: none; margin-right: 10px;">Onayla</a>
-                                    <a href="{% url 'takas_cevapla' talep.id 'reddet' %}" style="color: red; font-weight: bold; text-decoration: none;">Reddet</a>
-                                </div>
-                            {% endif %}
+                        <div class="list-item status-{{ talep.durum }}" style="display: flex; gap: 12px; align-items: center;">
+                            <div class="avatar-sm">{{ talep.talep_eden_doktor.kullanici.first_name|first|upper }}{{ talep.talep_eden_doktor.kullanici.last_name|first|upper }}</div>
+                            <div style="flex-grow: 1;">
+                                <strong>Kimden:</strong> {{ talep.talep_eden_doktor }}<br>
+                                <strong>Tarih:</strong> {{ talep.verilecek_nobet.tarih|date:"d M Y" }}
+                                {% if talep.durum == 'beklemede' %}
+                                    <div style="margin-top: 8px;">
+                                        <a href="{% url 'takas_cevapla' talep.id 'onayla' %}" style="color: #28a745; font-weight: bold; text-decoration: none; margin-right: 10px;">Onayla</a>
+                                        <a href="{% url 'takas_cevapla' talep.id 'reddet' %}" style="color: #dc3545; font-weight: bold; text-decoration: none;">Reddet</a>
+                                    </div>
+                                {% endif %}
+                            </div>
                         </div>
                     {% empty %}
                         <p style="font-size: 13px; color: #666;">Talep yok.</p>
@@ -107,32 +161,130 @@
                 <div class="card">
                     <h3>📤 Gönderdiğim Talepler</h3>
                     {% for talep in giden_talepler %}
-                        <div class="list-item status-{{ talep.durum }}">
-                            <strong>Kime:</strong> {{ talep.hedef_doktor }} | <strong>Durum:</strong> {{ talep.get_durum_display }}
+                        <div class="list-item status-{{ talep.durum }}" style="display: flex; gap: 12px; align-items: center;">
+                            <div class="avatar-sm" style="background: linear-gradient(135deg, #6c757d, #343a40);">{{ talep.hedef_doktor.kullanici.first_name|first|upper }}{{ talep.hedef_doktor.kullanici.last_name|first|upper }}</div>
+                            <div>
+                                <strong>Kime:</strong> {{ talep.hedef_doktor }}<br>
+                                <strong>Durum:</strong> {{ talep.get_durum_display }}
+                            </div>
                         </div>
                     {% empty %}
                         <p style="font-size: 13px; color: #666;">Gönderilen talep yok.</p>
                     {% endfor %}
-                </div>
-            </div>
+                </div>  
 
+            </div>
         </div>
     {% endif %}
 </div>
 
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
-    var calendarEl = document.getElementById('calendar');
-    var calendar = new FullCalendar.Calendar(calendarEl, {
-      initialView: 'dayGridMonth',
-      locale: 'tr',
-      height: 500, // Takvimin boyunu sabitledik, böylece aşağı kaymaz
-      headerToolbar: { left: 'prev,next', center: 'title', right: 'today' },
-      events: '/hastane/nobet_verileri_json/',
-    });
-    calendar.render();
-  });
-</script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
 
-</body>
+    {% if messages %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            {% for message in messages %}
+                Swal.fire({
+                    icon: '{% if message.tags == "error" %}error{% elif message.tags == "warning" %}warning{% else %}success{% endif %}',
+                    title: 'Bilgi',
+                    text: '{{ message }}',
+                    confirmButtonColor: '#0056b3',
+                    background: document.body.classList.contains('dark-mode') ? '#1e1e1e' : '#fff',
+                    color: document.body.classList.contains('dark-mode') ? '#f1f1f1' : '#545454'
+                });
+            {% endfor %}
+        });
+    </script>
+    {% endif %} <script>
+      // Gece Modu Hafıza ve Kontrol
+      const toggleBtn = document.getElementById('darkModeToggle');
+      const body = document.body;
+
+      if(localStorage.getItem('hastane_tema') === 'dark') {
+          body.classList.add('dark-mode');
+          if(toggleBtn) toggleBtn.textContent = '☀️';
+      }
+
+      if(toggleBtn) {
+          toggleBtn.addEventListener('click', () => {
+              body.classList.toggle('dark-mode');
+              if(body.classList.contains('dark-mode')) {
+                  localStorage.setItem('hastane_tema', 'dark');
+                  toggleBtn.textContent = '☀️';
+                  toggleBtn.style.transform = "rotate(180deg)";
+              } else {
+                  localStorage.setItem('hastane_tema', 'light');
+                  toggleBtn.textContent = '🌙';
+                  toggleBtn.style.transform = "rotate(0deg)";
+              }
+          });
+      }
+
+      // Takvimi Çiz ve Renklendir
+      document.addEventListener('DOMContentLoaded', function() {
+        var calendarEl = document.getElementById('calendar');
+        if (calendarEl) {
+            var calendar = new FullCalendar.Calendar(calendarEl, {
+              initialView: 'dayGridMonth',
+              locale: 'tr',
+              height: 500, 
+              headerToolbar: { left: 'prev,next', center: 'title', right: 'today' },
+              events: '{% url "nobet_verileri_json" %}', 
+              displayEventTime: false,
+              eventDisplay: 'block',
+              eventDidMount: function(info) {
+                if (info.event.extendedProps.description) {
+                  info.el.title = info.event.extendedProps.description;
+                  info.el.style.cursor = "pointer";
+                }
+              }
+            });
+            calendar.render();
+        }
+      });
+    </script>
+
+    {% if toplam_nobet > 0 %}
+    <script>
+document.addEventListener('DOMContentLoaded', function() {
+    var ctx = document.getElementById('nobetGrafigi');
+    if (ctx) {
+        var nobetGrafigi = new Chart(ctx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['🟢 Yeşil Alan', '🟡 Sarı Alan', '🔴 Kırmızı Alan'],
+                datasets: [{
+                    data: [{{ yesil_sayisi|default:0 }}, {{ sari_sayisi|default:0 }}, {{ kirmizi_sayisi|default:0 }}],
+                    backgroundColor: [
+                        'rgba(46, 204, 113, 0.8)', // Şeffaf Zümrüt
+                        'rgba(241, 196, 15, 0.8)',  // Şeffaf Ayçiçeği
+                        'rgba(231, 76, 60, 0.8)'    // Şeffaf Ateş
+                    ],
+                    borderColor: [
+                        'rgba(46, 204, 113, 1)',
+                        'rgba(241, 196, 15, 1)',
+                        'rgba(231, 76, 60, 1)'
+                    ],
+                    borderWidth: 2,
+                    hoverOffset: 10 // Üzerine gelince belirgin 3D efekti
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%', // İnce, zarif Apple Watch stili halka
+                plugins: { 
+                    legend: { 
+                        position: 'bottom',
+                        labels: { color: '#bbb' } // Koyu temada okunabilen parlak gri yazılar
+                    } 
+                }
+            }
+        });
+    }
+});
+</script>
+    {% endif %} </body>
 </html>
