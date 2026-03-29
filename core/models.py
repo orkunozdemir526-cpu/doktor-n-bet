@@ -44,7 +44,7 @@ class Nobet(models.Model):
 
     def __str__(self):
         zorunlu_notu = " (Zorunlu)" if self.izin_iptal_edildi else ""
-        return f"{self.tarih.strftime('%Y-%m-%d')} - {self.doktor.ad_soyad} [{self.get_bolum_display()}]{zorunlu_notu}"
+        return f"{self.doktor.kullanici.get_full_name()} | {self.tarih.strftime('%d.%m.%Y')} - [{self.get_bolum_display()}]"
 
     class Meta:
         verbose_name = "Nöbet"
@@ -77,3 +77,6 @@ class HastaneAyarlari(models.Model):
     def get_solo():
         obj, created = HastaneAyarlari.objects.get_or_create(pk=1)
         return obj
+    
+
+   

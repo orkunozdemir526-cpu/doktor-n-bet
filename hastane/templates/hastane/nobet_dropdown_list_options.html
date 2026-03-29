@@ -1,4 +1,4 @@
 <option value="">---------</option>
 {% for nobet in nobetler %}
-    <option value="{{ nobet.pk }}">{{ nobet.tarih|date:"d M Y" }} | Saat: {{ nobet.baslangic_saati|time:"H:i" }}</option>
+    <option value="{{ nobet.pk }}">{{ nobet.tarih|date:"d M Y" }} | Saat: {{ nobet.baslangic_saati|time:"H:i" }} - [{{ nobet.get_bolum_display }}]</option>
 {% endfor %}

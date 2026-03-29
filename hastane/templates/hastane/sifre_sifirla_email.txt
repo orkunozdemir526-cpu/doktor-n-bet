@@ -1,0 +1,11 @@
+Merhaba Dr. {{ user.first_name }} {{ user.last_name }},
+
+Merkez Hastanesi Nöbet Planlama Sistemi hesabınız için bir şifre sıfırlama talebi alınmıştır.
+
+Yeni şifrenizi güvenli bir şekilde belirlemek için lütfen aşağıdaki bağlantıya tıklayın:
+{{ protocol }}://{{ domain }}{% url 'password_reset_confirm' uidb64=uid token=token %}
+
+Eğer bu talebi siz yapmadıysanız, hiçbir işlem yapmanıza gerek yoktur. Hesabınız güvendedir ve şifreniz değiştirilmeyecektir.
+
+İyi çalışmalar dileriz,
+Merkez Hastanesi Başhekimliği

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Yeni Şifre Belirle</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        button { background-color: #28a745; color: white; border: none; padding: 12px 20px; width: 100%; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 15px;}
+        ul { list-style: none; padding: 0; color: red; font-size: 12px; text-align: left; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2 style="color: #333; margin-top:0;">🔑 Yeni Şifre</h2>
+        {% if validlink %}
+            <p style="color: #666; font-size: 14px;">Lütfen yeni şifrenizi iki kez girin.</p>
+            <form method="POST">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button type="submit">Şifremi Kaydet</button>
+            </form>
+        {% else %}
+            <p style="color: #dc3545; font-weight: bold;">Bu sıfırlama bağlantısı geçersiz veya süresi dolmuş. Lütfen tekrar şifre sıfırlama talebinde bulunun.</p>
+            <a href="{% url 'password_reset' %}">Tekrar Dene</a>
+        {% endif %}
+    </div>
+</body>
+</html>

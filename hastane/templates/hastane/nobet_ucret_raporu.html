@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ donem_ismi }} - Nöbet Hak Ediş Raporu</title>
+    <style>
+        /* 💻 EKRAN GÖRÜNÜMÜ (Karanlık Arka Plan ve Ortalı A4 Kağıdı) */
+        body { background-color: #525659; font-family: 'Times New Roman', Times, serif; margin: 0; padding: 40px 0; display: flex; flex-direction: column; align-items: center; }
+        
+        .print-btn-container { margin-bottom: 20px; }
+        .btn-print { background-color: #28a745; color: white; border: none; padding: 12px 25px; font-size: 16px; border-radius: 5px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: background 0.3s; }
+        .btn-print:hover { background-color: #218838; }
+
+        .a4-page { background: white; width: 21cm; min-height: 29.7cm; padding: 2.5cm; box-sizing: border-box; box-shadow: 0 0 15px rgba(0,0,0,0.5); position: relative; }
+        
+        /* 📄 RAPOR İÇERİĞİ TASARIMI */
+        .text-center { text-align: center; }
+        .font-bold { font-weight: bold; }
+        
+        .hospital-name { font-size: 18pt; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 5px; }
+        .report-title { font-size: 12pt; color: #333; margin-bottom: 5px; }
+        .period-info { font-size: 12pt; margin-bottom: 30px; }
+
+        .rapor-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11pt; border: 2px solid #000; }
+        .rapor-table th, .rapor-table td { border: 1px solid #000; padding: 10px; }
+        .rapor-table th { font-weight: bold; text-align: center; }
+        
+        .col-sira { width: 8%; text-align: center; font-weight: bold; }
+        .col-doktor { width: 50%; }
+        .col-nobet { width: 17%; text-align: center; font-weight: bold; }
+        .col-ucret { width: 25%; text-align: right; font-weight: bold; }
+
+        .total-row { border: 2px solid #000; padding: 10px; display: flex; justify-content: flex-end; align-items: center; font-size: 11pt; font-weight: bold; margin-bottom: 60px;}
+        .total-row span { color: #d32f2f; margin-left: 10px; font-size: 12pt; }
+
+        .signature-section { display: flex; justify-content: space-between; font-size: 11pt; font-weight: bold; padding: 0 20px; }
+        .signature-box { text-align: center; width: 200px; }
+        .signature-space { height: 80px; }
+
+        /* 🖨️ YAZDIRMA (PRINT) AYARLARI */
+        /* Ctrl+P veya Yazdır butonuna basıldığında siyah arka planı ve butonu gizler, sadece beyaz kağıdı yazıcıya yollar. */
+        @media print {
+            body { background-color: white; padding: 0; display: block; }
+            .print-btn-container { display: none; }
+            .a4-page { box-shadow: none; width: auto; min-height: auto; padding: 0; margin: 0; }
+            @page { size: A4; margin: 2.5cm; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="print-btn-container">
+        <button class="btn-print" onclick="window.print()">🖨️ Finans Raporunu Yazdır / PDF Al</button>
+    </div>
+
+    <div class="a4-page">
+        <div class="text-center">
+            <div class="hospital-name font-bold">T.C. MERKEZ HASTANESİ</div>
+            <div class="report-title font-bold">Mutemetlik Birimi - Nöbet Hak Ediş Raporu</div>
+            <div class="period-info font-bold">Dönem: {{ donem_ismi }} | Birim Ücret: {{ birim_ucret|floatformat:0 }} TL</div>
+        </div>
+
+        <table class="rapor-table">
+            <thead>
+                <tr>
+                    <th class="col-sira">Sıra</th>
+                    <th class="col-doktor">Doktor Adı Soyadı</th>
+                    <th class="col-nobet">Toplam Nöbet</th>
+                    <th class="col-ucret">Ödenecek Tutar (TL)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dr in dr_ucretleri %}
+                    <tr>
+                        <td class="col-sira">{{ forloop.counter }}</td>
+                        <td class="col-doktor">Dr. {{ dr.doktor_adi }}</td>
+                        <td class="col-nobet">{{ dr.toplam_nobet }}</td>
+                        <td class="col-ucret">{{ dr.toplam_ucret|floatformat:0 }} ₺</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center">Bu döneme ait nöbet verisi bulunamadı.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="total-row">
+            HASTANE TOPLAM NÖBET GİDERİ: <span>{{ hastane_toplam_ucret|floatformat:0 }} ₺</span>
+        </div>
+
+        <div class="signature-section">
+            <div class="signature-box">
+                <div>Mutemet / Finans Sorumlusu</div>
+                <div class="signature-space"></div>
+                <div>İmza</div>
+            </div>
+            <div class="signature-box">
+                <div>Onaylayan Başhekim</div>
+                <div class="signature-space"></div>
+                {% if user.first_name %}
+                    <div>Dr. {{ user.first_name }} {{ user.last_name }}</div>
+                {% else %}
+                    <div>Dr. Ahmet Orkun Özdemir</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

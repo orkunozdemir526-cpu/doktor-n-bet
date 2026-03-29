@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from datetime import timedelta
+from django.db.models import F
 
 # 1. Poliklinik (Bölüm) Modeli
 class Poliklinik(models.Model):
@@ -21,14 +22,31 @@ class Doktor(models.Model):
         ORTA_KIDEMLI = 'ORTA_KIDEMLI', 'Orta Kıdemli'
         KIDEMLI = 'KIDEMLI', 'Kıdemli'
 
+        
+
     kullanici = models.OneToOneField(User, on_delete=models.CASCADE, related_name='hastane_doktor_profili')
     poliklinik = models.ForeignKey(Poliklinik, on_delete=models.SET_NULL, null=True, verbose_name="Bölümü")
     telefon = models.CharField(max_length=15, blank=True, null=True)
     kidem = models.CharField(max_length=20, choices=Kidem.choices, default=Kidem.ACEMI, verbose_name="Kıdem")
-
+    
     class Meta:
         verbose_name = "Doktor"
         verbose_name_plural = "Doktorlar"
+# 🌟 YENİ EKLENEN TELEGRAM ALANI 🌟
+    telegram_chat_id = models.CharField(
+        max_length=50, 
+        blank=True, 
+        null=True, 
+        help_text="Telegram bildirimleri için doktorun Chat ID numarası"
+    )
+
+    # 🌟 YENİ EKLENEN İZİN BAKİYESİ 🌟
+    kalan_izin_hakki = models.IntegerField(
+        default=20, 
+        verbose_name="Kalan İzin Hakkı (Gün)",
+        help_text="Doktorun bu yıl kullanabileceği toplam izin günü sayısı"
+    )
+
 
     def __str__(self):
         ad_soyad = f"{self.kullanici.first_name} {self.kullanici.last_name}".strip()
@@ -163,4 +181,146 @@ class IzinTalebi(models.Model):
 
     def __str__(self):
         return f"{self.doktor} - İzin: {self.tarih} ({self.get_durum_display()})"
+
+    # 🌟 1. AŞAMA: KONTROL MERKEZİ 🌟
+    def clean(self):
+        eski_durum = None
+        if self.pk:
+            eski_durum = IzinTalebi.objects.get(pk=self.pk).durum
+            
+        if self.durum == 'onaylandi' and eski_durum != 'onaylandi':
+            guncel_doktor = Doktor.objects.get(pk=self.doktor.pk)
+            if guncel_doktor.kalan_izin_hakki <= 0:
+                raise ValidationError({'durum': f"⚠️ Dr. {guncel_doktor.kullanici.get_full_name()} için yeterli izin hakkı bulunmamaktadır! (Kalan Bakiye: 0 Gün)"})
+        super().clean()
+
+    # 🌟 2. AŞAMA: MATEMATİK MERKEZİ (Doğrudan SQL Müdahalesi) 🌟
+    # IzinTalebi modeli içindeki save() fonksiyonunun güncellenmiş hali:
+    def save(self, *args, **kwargs):
+        eski_durum = None
+        if self.pk:
+            eski_durum = IzinTalebi.objects.get(pk=self.pk).durum
+
+        # 1. Önce izin kaydını veritabanına kaydediyoruz
+        super().save(*args, **kwargs)
+
+        # 2. Eğer durum değişmişse işlemleri tetikle
+        if eski_durum != self.durum:
+            
+            # SENARYO A: İzin Yeni Onaylandıysa (Bakiyeden Düş ve Bildirim At)
+            if self.durum == 'onaylandi':
+                Doktor.objects.filter(pk=self.doktor.pk).update(kalan_izin_hakki=F('kalan_izin_hakki') - 1)
+                Bildirim.objects.create(doktor=self.doktor, mesaj=f"🏖️ {self.tarih.strftime('%d.%m.%Y')} tarihli yıllık izin talebiniz Başhekimlik tarafından ONAYLANDI.")
+                
+            # SENARYO B: Önceden Onaylı Bir İzin İptal/Red Ediliyorsa (Bakiyeyi Geri Ver)
+            elif eski_durum == 'onaylandi':
+                Doktor.objects.filter(pk=self.doktor.pk).update(kalan_izin_hakki=F('kalan_izin_hakki') + 1)
+                
+            # SENARYO C: İzin Reddedildiyse (Nereden gelirse gelsin Red Bildirimi At)
+            if self.durum == 'reddedildi':
+                Bildirim.objects.create(doktor=self.doktor, mesaj=f"❌ {self.tarih.strftime('%d.%m.%Y')} tarihli yıllık izin talebiniz REDDEDİLDİ.")
+
+    # 🌟 3. AŞAMA: GÜVENLİK (Silinirse Hakkı İade Et) 🌟
+    def delete(self, *args, **kwargs):
+        if self.durum == 'onaylandi':
+            Doktor.objects.filter(pk=self.doktor.pk).update(kalan_izin_hakki=F('kalan_izin_hakki') + 1)
+        super().delete(*args, **kwargs)
+    
+     # =========================================================
+# 🌟 YENİ SİSTEM: RESMİ TATİL VE ADALET MODÜLÜ 🌟
+# =========================================================
+class ResmiTatil(models.Model):
+    isim = models.CharField(max_length=100, verbose_name="Tatil Adı (Örn: Ramazan Bayramı 1. Gün)")
+    tarih = models.DateField(unique=True, verbose_name="Tatil Tarihi")
+    # %25 zamlı hak ediş ve x2 yıpranma puanı için bu günler referans alınacak
+    carpan_etkisi = models.BooleanField(default=True, verbose_name="Maaş/Puan Çarpanı Uygulansın mı?")
+
+    class Meta:
+        verbose_name = "Resmi Tatil"
+        verbose_name_plural = "Resmi Tatiller"
+        ordering = ['tarih'] # Tarihe göre sıralı gelsin
+
+    def __str__(self):
+        return f"{self.isim} ({self.tarih.strftime('%d.%m.%Y')})"
+    
+    # =========================================================
+# 🌟 YENİ SİSTEM: NÖBET HAVUZU (AÇIK PAZAR) 🌟
+# =========================================================
+class NobetHavuzu(models.Model):
+    # Bir nöbet sadece bir kez havuza konabilir (OneToOneField)
+    nobet = models.OneToOneField('Nobet', on_delete=models.CASCADE, verbose_name="Havuzdaki Nöbet")
+    olusturan_doktor = models.ForeignKey('Doktor', on_delete=models.CASCADE, verbose_name="İlana Koyan Doktor")
+    aciklama = models.TextField(blank=True, null=True, verbose_name="Neden Devrediyor?")
+    olusturulma_tarihi = models.DateTimeField(auto_now_add=True)
+    
+    DURUM_CHOICES = (
+        ('aktif', 'Havuza Açık (Bekliyor)'),
+        ('alindi', 'Biri Tarafından Alındı'),
+    )
+    durum = models.CharField(max_length=10, choices=DURUM_CHOICES, default='aktif')
+
+    class Meta:
+        verbose_name = "Havuz İlanı"
+        verbose_name_plural = "Nöbet Havuzu İlanları"
+        ordering = ['-olusturulma_tarihi']
+
+    def __str__(self):
+        return f"İlan: {self.nobet.tarih} - {self.olusturan_doktor.kullanici.get_full_name()}"
+    
+    # =========================================================
+# 🌟 AŞAMA 4: DOKTOR TERCİH (KISITLAMA) SİSTEMİ 🌟
+# =========================================================
+class NobetTercihi(models.Model):
+    doktor = models.ForeignKey('Doktor', on_delete=models.CASCADE, verbose_name="Doktor")
+    tarih = models.DateField(verbose_name="İstenmeyen Nöbet Tarihi")
+    olusturulma_tarihi = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Nöbet Tercihi (İstenmeyen Gün)"
+        verbose_name_plural = "Nöbet Tercihleri"
+        ordering = ['-tarih']
+        # Bir doktor aynı günü iki defa "istemiyorum" diye ekleyemesin
+        unique_together = ('doktor', 'tarih')
+
+    def __str__(self):
+        return f"{self.doktor.kullanici.get_full_name()} - {self.tarih} (Nöbet İstemiyor)"
+
+        # =========================================================
+# 📢 İLETİŞİM VE BİLDİRİM SİSTEMİ MODELLERİ 🔔
+# =========================================================
+
+class Duyuru(models.Model):
+    ONCELIK_SECENEKLERI = (
+        ('info', 'ℹ️ Bilgi (Mavi)'),
+        ('warning', '⚠️ Uyarı (Sarı)'),
+        ('danger', '🚨 Acil / Önemli (Kırmızı)'),
+    )
+    
+    baslik = models.CharField(max_length=150, verbose_name="Duyuru Başlığı")
+    mesaj = models.TextField(verbose_name="Duyuru İçeriği")
+    oncelik = models.CharField(max_length=20, choices=ONCELIK_SECENEKLERI, default='info', verbose_name="Önem Derecesi")
+    tarih = models.DateTimeField(auto_now_add=True, verbose_name="Yayınlanma Tarihi")
+    aktif_mi = models.BooleanField(default=True, verbose_name="Yayında mı?")
+
+    class Meta:
+        verbose_name = "Başhekimlik Duyurusu"
+        verbose_name_plural = "Başhekimlik Duyuruları"
+        ordering = ['-tarih']
+
+    def __str__(self):
+        return f"{self.get_oncelik_display()} - {self.baslik}"
+
+class Bildirim(models.Model):
+    doktor = models.ForeignKey(Doktor, on_delete=models.CASCADE, related_name="bildirimler")
+    mesaj = models.CharField(max_length=255)
+    okundu_mu = models.BooleanField(default=False)
+    tarih = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Bildirim"
+        verbose_name_plural = "Bildirimler"
+        ordering = ['-tarih']
+
+    def __str__(self):
+        return f"{self.doktor} - {self.mesaj}"
     

@@ -71,4 +71,75 @@
             }, 50); // 50 milisaniyede bir kontrol et (İnsan gözü bunu fark edemez bile)
         });
     </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const sifreKutusu = document.getElementById('id_password');
+            
+            // Eğer şifre kutusu varsa ve daha önce buton eklenmemişse çalış
+            if (sifreKutusu && !document.getElementById('goz-butonu')) {
+                
+                // 1. Şifre kutusunu sımsıkı saracak bir zırh (div) oluşturuyoruz
+                const zyrh = document.createElement('div');
+                zyrh.style.position = 'relative';
+                zyrh.style.display = 'block';
+                
+                // Zırhı kutunun yerine koyup, kutuyu zırhın içine alıyoruz
+                sifreKutusu.parentNode.insertBefore(zyrh, sifreKutusu);
+                zyrh.appendChild(sifreKutusu);
+                
+                // 2. Yazılar göz ikonunun altına girmesin diye sağdan boşluk bırakıyoruz
+                sifreKutusu.style.paddingRight = '45px';
+                sifreKutusu.style.boxSizing = 'border-box';
+                sifreKutusu.style.width = '100%';
+
+                // 3. Göz Butonumuzu Yaratıyoruz
+                const gozButonu = document.createElement('span');
+                gozButonu.id = 'goz-butonu';
+                gozButonu.innerHTML = '👁️';
+                gozButonu.style.position = 'absolute';
+                gozButonu.style.right = '12px';
+                
+                // Mükemmel dikey ortalama ayarı
+                gozButonu.style.top = '50%';
+                gozButonu.style.transform = 'translateY(-50%)';
+                
+                // Tasarım: Daha büyük ve tamamen görünür
+                gozButonu.style.cursor = 'pointer';
+                gozButonu.style.userSelect = 'none';
+                gozButonu.style.fontSize = '22px'; // İkonu büyüttük
+                gozButonu.style.opacity = '1'; // Solukluğu tamamen kaldırdık
+                gozButonu.style.zIndex = '10'; // Her zaman üstte kalsın
+                
+                // Üstüne gelince hafifçe büyüme efekti
+                gozButonu.style.transition = 'transform 0.2s';
+                gozButonu.onmouseover = () => gozButonu.style.transform = 'translateY(-50%) scale(1.2)';
+                gozButonu.onmouseout = () => gozButonu.style.transform = 'translateY(-50%) scale(1)';
+                
+                // Butonu zırhın içine (şifre kutusunun yanına) ekle
+                zyrh.appendChild(gozButonu);
+                
+                // 4. Tıklama Olayı
+                gozButonu.addEventListener('click', function() {
+                    if (sifreKutusu.type === 'password') {
+                        sifreKutusu.type = 'text';
+                        gozButonu.innerHTML = '🙈';
+                    } else {
+                        sifreKutusu.type = 'password';
+                        gozButonu.innerHTML = '👁️';
+                    }
+                });
+            }
+        });
+    </script>
+{% endblock %}
+
+{% block content %}
+    {{ block.super }}
+    
+    <div style="text-align: center; margin-top: 20px; background: var(--body-bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+        <a href="{% url 'password_reset' %}" style="color: var(--link-fg); text-decoration: none; font-size: 15px; font-weight: bold; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">
+            🔑 Şifremi Unuttum
+        </a>
+    </div>
 {% endblock %}

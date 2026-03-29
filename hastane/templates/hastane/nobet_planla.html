@@ -10,19 +10,20 @@
         h2 { color: #333; margin-top: 0; margin-bottom: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px; }
         p.subtitle { color: #777; font-size: 14px; margin-bottom: 30px; }
         
-        /* Form Alanları Tasarımı */
         .form-group { text-align: left; margin-bottom: 20px; }
         .form-group label { display: block; margin-bottom: 8px; color: #555; font-weight: 600; font-size: 14px; }
         .form-group select, .form-group input[type="date"] { width: 100%; padding: 12px; border: 1px solid #ced4da; border-radius: 6px; box-sizing: border-box; font-size: 15px; outline: none; background-color: #fff; color: #333; transition: border-color 0.3s; }
         .form-group select:focus, .form-group input:focus { border-color: #4a148c; }
         
-        /* Butonlar */
         .btn-planla { background-color: #4a148c; color: white; border: none; padding: 15px; width: 100%; border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: bold; transition: background 0.3s; margin-top: 10px; }
         .btn-planla:hover { background-color: #310b66; }
         .btn-planla:disabled { background-color: #8a5bc4; cursor: not-allowed; }
-        .back-link { display: inline-block; margin-top: 25px; color: #666; text-decoration: none; font-size: 14px; font-weight: 600; transition: color 0.3s; }
-        .back-link:hover { color: #333; }
-
+        
+        /* Geri Dön Linki İçin Düzeltilmiş Tasarım */
+        .return-link { display: block; width: 100%; margin-top: 25px; text-align: center; }
+        .return-link a { color: #888; text-decoration: none; font-size: 14px; font-weight: 600; transition: color 0.3s; }
+        .return-link a:hover { color: #333; }
+        
         /* --- GECE MODU --- */
         body.dark-mode { background-color: #121212; }
         body.dark-mode .planlayici-container { background: #1e1e1e; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
@@ -33,13 +34,12 @@
         body.dark-mode .form-group select:focus, body.dark-mode .form-group input:focus { border-color: #a370f7; }
         body.dark-mode .btn-planla { background-color: #5c20a8; }
         body.dark-mode .btn-planla:hover { background-color: #7938cf; }
+        body.dark-mode .return-link a:hover { color: #fff; }
 
-        /* --- YÜKLEME EKRANI SPINNER --- */
+        /* YÜKLEME EKRANI */
         #yapayZekaLoading { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; flex-direction: column; justify-content: center; align-items: center; color: white; }
         .spinner { border: 6px solid rgba(255, 255, 255, 0.15); border-top: 6px solid #a370f7; border-radius: 50%; width: 65px; height: 65px; animation: spin 1s linear infinite; margin-bottom: 25px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        /* Hata mesajı tasarımı */
         .error-msg { background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px; margin-bottom: 20px; font-size: 14px; border: 1px solid #f5c6cb; }
         body.dark-mode .error-msg { background-color: #440000; color: #ffb3b3; border-color: #660000; }
     </style>
@@ -53,10 +53,17 @@
         {% if error %}
             <div class="error-msg">⚠️ {{ error }}</div>
         {% endif %}
+        
+        {% if messages %}
+            {% for message in messages %}
+                <div class="error-msg" style="{% if message.tags == 'success' %}background-color: #d4edda; color: #155724; border-color: #c3e6cb;{% else %}background-color: #fff3cd; color: #856404; border-color: #ffeeba;{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
 
         <form method="POST" action="{% url 'nobet_planla' %}" id="planlamaFormu">
             {% csrf_token %}
-            
             <div class="form-group">
                 <label>Poliklinik Seçin</label>
                 <select name="poliklinik_id" required>
@@ -65,31 +72,25 @@
                     {% endfor %}
                 </select>
             </div>
-
             <div class="form-group">
                 <label>Başlangıç Tarihi</label>
                 <input type="date" name="baslangic_tarihi" required>
             </div>
-
             <div class="form-group">
                 <label>Bitiş Tarihi</label>
                 <input type="date" name="bitis_tarihi" required>
             </div>
-
             <button type="submit" class="btn-planla" id="submitBtn">Planla ve Excel İndir 📊</button>
         </form>
 
-        <div class="return-link" style="margin-top: 20px; text-align: center;">
-    {% if user.is_superuser %}
-        <a href="/admin/" style="color: #bbb; text-decoration: none; font-size: 0.9rem;">
-            ← Admin Paneline Dön
-        </a>
-    {% else %}
-        <a href="{% url 'doktor_paneli' %}" style="color: #bbb; text-decoration: none; font-size: 0.9rem;">
-            ← Panele Dön
-        </a>
-    {% endif %}
-</div>
+        <div class="return-link">
+            {% if user.is_superuser %}
+                <a href="/admin/">← Admin Paneline Dön</a>
+            {% else %}
+                <a href="{% url 'doktor_paneli' %}">← Panele Dön</a>
+            {% endif %}
+        </div>
+    </div>
 
     <div id="yapayZekaLoading">
         <div class="spinner"></div>
@@ -98,12 +99,10 @@
     </div>
 
     <script>
-        // Gece Modu
         if(localStorage.getItem('hastane_tema') === 'dark') {
             document.body.classList.add('dark-mode');
         }
 
-        // Form Gönderimi (Tarayıcıyı engellemeden, sadece animasyonu göster/gizle)
         document.addEventListener('DOMContentLoaded', function() {
             const form = document.getElementById('planlamaFormu');
             const loadingEkrani = document.getElementById('yapayZekaLoading');
@@ -111,12 +110,10 @@
             
             if(form) {
                 form.addEventListener('submit', function() {
-                    // Perdeyi indir
                     loadingEkrani.style.display = 'flex';
                     btn.disabled = true;
                     btn.innerText = 'Hesaplanıyor... ⏳';
                     
-                    // İşlem bittikten sonra perdeyi kaldır (Excel inince sayfa yenilenmediği için)
                     setTimeout(function() {
                         loadingEkrani.style.display = 'none';
                         btn.disabled = false;
@@ -124,13 +121,63 @@
                     }, 2000);
                 });
             }
-
-            // Ekstra Güvenlik: Kullanıcı sekmeye geri döndüğünde veya ekrana tıkladığında perdeyi kesin kaldır
             window.addEventListener('focus', function() {
                 loadingEkrani.style.display = 'none';
                 if(btn) { btn.disabled = false; btn.innerText = 'Planla ve Excel İndir 📊'; }
             });
         });
     </script>
-</body>
-</html>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    
+    <style>
+        /* Sadece bizim özel isimlendirdiğimiz VIP takvimleri hedef alıyoruz */
+        .vip-takvim-kutusu {
+            background-color: #ffffff !important;
+            color: #333333 !important;
+            border: 1px solid #ced4da !important;
+            border-radius: 6px !important;
+            padding: 12px 15px !important;
+            font-size: 15px !important;
+            width: 100% !important;
+            cursor: pointer !important;
+            box-sizing: border-box !important;
+            /* Şık Mor İkon */
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236f42c1'%3E%3Cpath d='M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM7 11h2v2H7v-2zm4 0h2v2h-2v-2zm4 0h2v2h-2v-2zm-8 4h2v2H7v-2zm4 0h2v2h-2v-2zm4 0h2v2h-2v-2z'/%3E%3C/svg%3E") !important;
+            background-repeat: no-repeat !important;
+            background-position: right 12px center !important;
+            background-size: 20px !important;
+            padding-right: 40px !important;
+            transition: all 0.3s;
+        }
+        
+        .vip-takvim-kutusu:focus {
+            border-color: #6f42c1 !important;
+            box-shadow: 0 0 0 3px rgba(111, 66, 193, 0.2) !important;
+            outline: none !important;
+        }
+
+        /* 🌙 Gece Moduna Uyum (Sadece doktor paneli için çalışır, admin sayfasını bozmaz) */
+        body.dark-mode .vip-takvim-kutusu {
+            background-color: #2a2a2a !important;
+            color: #f1f1f1 !important;
+            border-color: #444 !important;
+        }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/tr.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            flatpickr("input[type='date']", {
+                locale: "tr",
+                dateFormat: "Y-m-d",
+                altInput: true,
+                altFormat: "j F Y",
+                disableMobile: true,
+                // 🌟 İŞTE SİHİR BURADA: Flatpickr'ın oluşturduğu yeni kutuya zorla kendi ismimizi (class) veriyoruz!
+                altInputClass: "vip-takvim-kutusu" 
+            });
+        });
+    </script>

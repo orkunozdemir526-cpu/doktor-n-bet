@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ ay_adi }} {{ yil }} - Resmi Nöbet Listesi</title>
+    <style>
+        /* A4 KAĞIDI VE YAZDIRMA AYARLARI */
+        @page { size: A4; margin: 15mm; }
+        body { font-family: 'Times New Roman', serif; color: #000; background: #fff; margin: 0; padding: 0; }
+        
+        /* BAŞLIK KISMI */
+        .header { text-align: center; border-bottom: 3px double #000; padding-bottom: 10px; margin-bottom: 20px; }
+        .header h1 { margin: 0; font-size: 22px; text-transform: uppercase; font-weight: bold; }
+        .header h2 { margin: 5px 0 0; font-size: 18px; font-weight: normal; }
+        .header h3 { margin: 15px 0 0; font-size: 16px; background-color: #f2f2f2; padding: 5px; display: inline-block; border: 1px solid #000;}
+        
+        /* TABLO KISMI */
+        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 13px; }
+        th, td { border: 1px solid #000; padding: 6px; text-align: center; vertical-align: middle; }
+        th { background-color: #f0f0f0; font-weight: bold; font-size: 14px; text-transform: uppercase;}
+        
+        /* İMZA KISMI */
+        .footer { margin-top: 50px; display: flex; justify-content: space-between; padding: 0 30px; }
+        .signature { text-align: center; width: 200px; }
+        .signature-line { height: 60px; }
+        
+        /* EKRAN GÖRÜNÜMÜ VE BUTON (SADECE EKRANDA GÖRÜNÜR, KAĞIDA ÇIKMAZ) */
+        @media print {
+            .no-print { display: none !important; }
+            body { background-color: white; }
+        }
+        .print-btn { background: #dc3545; color: white; border: none; padding: 12px 25px; cursor: pointer; border-radius: 5px; font-size: 16px; font-weight: bold; margin: 20px auto; display: block; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .print-btn:hover { background: #c82333; }
+        .screen-container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; box-shadow: 0 0 15px rgba(0,0,0,0.2); }
+    </style>
+</head>
+<body style="background-color: #555; padding: 20px 0;">
+    
+    <button onclick="window.print()" class="print-btn no-print">🖨️ PDF Olarak Kaydet / Çıktı Al</button>
+
+    <div class="screen-container">
+        <div class="header">
+            <h1>T.C. SAĞLIK BAKANLIĞI</h1>
+            <h2>Merkez Hastanesi Başhekimliği</h2>
+            <h3>{{ ay_adi|upper }} {{ yil }} - AYLIK NÖBET LİSTESİ</h3>
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 15%;">Tarih</th>
+                    <th style="width: 28%;">🔴 Kırmızı Alan</th>
+                    <th style="width: 28%;">🟡 Sarı Alan</th>
+                    <th style="width: 28%;">🟢 Yeşil Alan</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% regroup nobetler by tarih as gunluk_nobetler %}
+                {% for gun in gunluk_nobetler %}
+                <tr>
+                    <td><strong>{{ gun.grouper|date:"d.m.Y" }}</strong><br><small>{{ gun.grouper|date:"l" }}</small></td>
+                    
+                    <td>
+                        {% for n in gun.list %}{% if n.bolum == 'KIRMIZI' %}Dr. {{ n.doktor.kullanici.last_name }}<br>{% endif %}{% endfor %}
+                    </td>
+                    <td>
+                        {% for n in gun.list %}{% if n.bolum == 'SARI' %}Dr. {{ n.doktor.kullanici.last_name }}<br>{% endif %}{% endfor %}
+                    </td>
+                    <td>
+                        {% for n in gun.list %}{% if n.bolum == 'YESIL' %}Dr. {{ n.doktor.kullanici.last_name }}<br>{% endif %}{% endfor %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" style="padding: 20px;">Bu ay için henüz nöbet planlanmamıştır.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="footer">
+            <div class="signature">
+                <p><strong>Hazırlayan</strong></p>
+                <div class="signature-line"></div>
+                <p>Nöbet Planlama Birimi</p>
+            </div>
+            <div class="signature">
+                <p><strong>Onaylayan</strong></p>
+                <div class="signature-line"></div>
+                <p><strong>Dr. {{ bashekim_adi }}</strong><br>Başhekim</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

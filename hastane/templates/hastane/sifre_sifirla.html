@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Şifremi Unuttum</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        input[type="email"] { width: 100%; padding: 12px; margin: 20px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        button { background-color: #0056b3; color: white; border: none; padding: 12px 20px; width: 100%; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        button:hover { background-color: #004494; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2 style="color: #333; margin-top:0;">🔐 Şifre Kurtarma</h2>
+        <p style="color: #666; font-size: 14px;">Sisteme kayıtlı e-posta adresinizi girin. Size şifrenizi sıfırlamanız için güvenli bir bağlantı göndereceğiz.</p>
+        <form method="POST">
+            {% csrf_token %}
+            {{ form.email }}
+            <button type="submit">Sıfırlama Bağlantısı Gönder</button>
+        </form>
+        <a href="/hastane/giris/" style="display: block; margin-top: 15px; color: #666; text-decoration: none; font-size: 13px;">← Giriş Ekranına Dön</a>
+    </div>
+</body>
+</html>

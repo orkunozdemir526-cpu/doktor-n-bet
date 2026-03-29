@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Nöbet Analiz ve Adalet Raporu</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 20px; color: #333; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .stat-val { font-size: 28px; font-weight: bold; color: #4a148c; display: block; }
+        .stat-label { font-size: 13px; color: #777; }
+        
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #4a148c; color: white; }
+        
+        /* Adalet Barı */
+        .progress-container { width: 100%; background: #ddd; border-radius: 10px; height: 10px; margin-top: 10px; }
+        .progress-bar { height: 10px; border-radius: 10px; transition: width 0.5s; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 style="text-align: center;">📊 {{ ay }}. Ay Nöbet Verimlilik Analizi</h2>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-label">Ay Ortalama Nöbet</span>
+                <span class="stat-val">{{ ortalama }}</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Standart Sapma (σ)</span>
+                <span class="stat-val" style="color: {% if standart_sapma < 1.5 %}#28a745{% else %}#dc3545{% endif %};">{{ standart_sapma }}</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Sistem Adalet Skoru</span>
+                <span class="stat-val">{{ adalet_skoru }} / 100</span>
+                <div class="progress-container">
+                    <div class="progress-bar" style="width: {{ adalet_skoru }}%; background: #4a148c;"></div>
+                </div>
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Doktor</th>
+                    <th>Toplam Nöbet</th>
+                    <th>Hafta Sonu Yükü</th>
+                    <th>Yük Grafiği</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in veriler %}
+                <tr>
+                    <td>Dr. {{ v.doktor.kullanici.get_full_name }}</td>
+                    <td><strong>{{ v.sayi }}</strong></td>
+                    <td>{{ v.haftasoundu }}</td>
+                    <td>
+                        <div style="width: 100px; background: #eee; height: 15px; border-radius: 5px;">
+                            <div style="width: {% widthratio v.sayi ortalama 50 %}%; background: #a370f7; height: 15px; border-radius: 5px;"></div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <p style="font-size: 12px; color: #888; margin-top: 20px; text-align: center;">* Standart sapma ($\sigma$) 0'a ne kadar yakınsa, nöbet dağılımı o kadar eşittir.</p>
+    </div>
+</body>
+</html>

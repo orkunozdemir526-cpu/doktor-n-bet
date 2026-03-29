@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <title>Doktor Kontrol Paneli</title>
-    
-
-    
+    <link rel="manifest" href="{% url 'manifest' %}">
+    <meta name="theme-color" content="#0056b3">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3063/3063206.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
         .container { max-width: 1400px; margin: 0 auto; }
@@ -32,6 +34,40 @@
         body.dark-mode p, body.dark-mode small { color: #bbb !important; }
         /* Takvimdeki nöbet kutucuklarını ortala ve kalın yap */
         .fc-event { text-align: center !important; font-weight: bold !important; border: none !important; padding: 2px !important; }
+        /* --- BİLDİRİM ÇANI VE MENÜSÜ TASARIMI --- */
+        .notification-bell { background: none; border: none; font-size: 24px; cursor: pointer; padding: 0; position: relative; transition: transform 0.2s; }
+        .notification-bell:hover { transform: scale(1.1); }
+        .badge { position: absolute; top: -5px; right: -8px; background: #dc3545; color: white; border-radius: 50%; padding: 2px 6px; font-size: 11px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .dropdown-menu { display: none; position: absolute; right: 0; top: 45px; background: white; border: 1px solid #e0e0e0; border-radius: 8px; width: 320px; box-shadow: 0 8px 16px rgba(0,0,0,0.15); z-index: 1000; text-align: left; overflow: hidden; }
+        .dropdown-menu.show { display: block; animation: fadeIn 0.2s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .notification-item { padding: 12px 15px; border-bottom: 1px solid #f0f0f0; font-size: 13px; color: #333; line-height: 1.4; }
+        .notification-item:last-child { border-bottom: none; }
+        .mark-read-btn { display: block; text-align: center; padding: 12px; background: #f8f9fa; color: #0056b3; text-decoration: none; font-weight: bold; font-size: 13px; transition: background 0.2s; }
+        .mark-read-btn:hover { background: #e9ecef; }
+        
+        /* Gece Modu Uyumları */
+        body.dark-mode .dropdown-menu { background: #1e1e1e; border-color: #333; box-shadow: 0 8px 16px rgba(0,0,0,0.5); }
+        body.dark-mode .notification-item { border-bottom-color: #333; color: #ddd; }
+        body.dark-mode .mark-read-btn { background: #2a2a2a; color: #66b2ff; }
+        body.dark-mode .mark-read-btn:hover { background: #333; }
+        
+        /* --- KUTU İÇİ KAYDIRMA (SCROLL-BOX) TASARIMI --- */
+        .scroll-box {
+            max-height: 220px; /* Kutunun maksimum boyunu sabitliyoruz */
+            overflow-y: auto;  /* İçerik taşarsa kaydırma çubuğu çıkar */
+            padding-right: 5px;
+        }
+        
+        /* Şık ve İnce Kaydırma Çubuğu (Webkit) */
+        .scroll-box::-webkit-scrollbar { width: 6px; }
+        .scroll-box::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        .scroll-box::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 10px; }
+        .scroll-box::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+        /* Gece Modu Kaydırma Çubuğu */
+        body.dark-mode .scroll-box::-webkit-scrollbar-track { background: #2a2a2a; }
+        body.dark-mode .scroll-box::-webkit-scrollbar-thumb { background: #555; }
+        body.dark-mode .scroll-box::-webkit-scrollbar-thumb:hover { background: #777; }
         /* --- DİNAMİK AVATAR TASARIMLARI --- */
         .avatar { width: 45px; height: 45px; border-radius: 50%; background: linear-gradient(135deg, #6f42c1, #0056b3); color: white; display: flex; justify-content: center; align-items: center; font-size: 18px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); flex-shrink: 0; }
         .avatar-sm { width: 35px; height: 35px; border-radius: 50%; background: linear-gradient(135deg, #17a2b8, #0056b3); color: white; display: flex; justify-content: center; align-items: center; font-size: 14px; font-weight: bold; flex-shrink: 0; }
@@ -51,12 +87,57 @@
                 <div class="avatar" title="Profiliniz">{{ doktor.kullanici.first_name|first|upper }}{{ doktor.kullanici.last_name|first|upper }}</div>
                 <h1>Dr. {{ doktor.kullanici.first_name }} {{ doktor.kullanici.last_name }} | {{ doktor.poliklinik }}</h1>
             </div>
-            
-            <div style="display: flex; align-items: center; gap: 15px;">
+
+            <div style="display: flex; align-items: center; gap: 20px;">
+                
+                <div style="position: relative;">
+                    <button id="bellToggle" class="notification-bell" title="Bildirimler">
+                        🔔
+                        {% if bildirim_sayisi > 0 %}
+                            <span class="badge">{{ bildirim_sayisi }}</span>
+                        {% endif %}
+                    </button>
+                    <div id="notificationDropdown" class="dropdown-menu">
+                        <div style="padding: 10px 15px; background: #f8f9fa; border-bottom: 1px solid #e0e0e0; font-weight: bold; color: #555; font-size: 14px;">Bildirimleriniz</div>
+                        {% for bildirim in bildirimler %}
+                            <div class="notification-item">
+                                {{ bildirim.mesaj }}
+                                <div style="font-size: 11px; color: #888; margin-top: 5px;">{{ bildirim.tarih|date:"d M - H:i" }}</div>
+                            </div>
+                        {% empty %}
+                            <div class="notification-item" style="text-align: center; color: #888; padding: 20px;">Yeni bildiriminiz yok. 🎉</div>
+                        {% endfor %}
+                        
+                        {% if bildirim_sayisi > 0 %}
+                            <a href="{% url 'bildirim_okundu' %}" class="mark-read-btn">Hepsini Okundu İşaretle ✔️</a>
+                        {% endif %}
+                    </div>
+                </div>
+
                 <button id="darkModeToggle" style="background:none; border:none; font-size:24px; cursor:pointer; padding:0; transition: transform 0.3s;" title="Gece/Gündüz Modu">🌙</button>
                 <form action="{% url 'cikis' %}" method="post" style="margin:0;">{% csrf_token %}<button type="submit" class="logout-btn">Çıkış Yap</button></form>
             </div>
         </div>
+
+        {% if duyurular %}
+            <div style="margin-bottom: 20px;">
+                {% for duyuru in duyurular %}
+                    <div style="padding: 15px 20px; border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+                        {% if duyuru.oncelik == 'info' %}background-color: #e3f2fd; color: #0d47a1; border-left: 5px solid #1976d2;
+                        {% elif duyuru.oncelik == 'warning' %}background-color: #fff8e1; color: #f57f17; border-left: 5px solid #fbc02d;
+                        {% elif duyuru.oncelik == 'danger' %}background-color: #ffebee; color: #b71c1c; border-left: 5px solid #d32f2f;{% endif %}">
+                        
+                        <div>
+                            <strong style="font-size: 16px;">📢 {{ duyuru.baslik }}</strong><br>
+                            <span style="font-size: 14px; margin-top: 4px; display: inline-block;">{{ duyuru.mesaj }}</span>
+                        </div>
+                        <div style="font-size: 12px; opacity: 0.7; white-space: nowrap; margin-left: 20px;">
+                            {{ duyuru.tarih|date:"d M Y" }}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
 
         <div class="dashboard-grid">
             
@@ -81,6 +162,33 @@
 
             <div class="sidebar">
                 <a href="{% url 'takas_olustur' %}" class="btn-new">+ Yeni Takas Talebi Oluştur</a>
+                <a href="{% url 'nobet_havuzu' %}" class="btn btn-info btn-lg shadow" style="display: block; text-align: center; text-decoration: none; padding: 10px; border-radius: 5px; font-weight: bold; background-color: #17a2b8; color: white; margin-bottom: 20px;">
+                    🌊 Nöbet Havuzuna Git (Açık Pazar)
+                </a>
+
+                <div style="background-color: #e0f7fa; color: #006064; padding: 15px; border-radius: 8px; border-left: 5px solid #00bcd4; margin-bottom: 20px; display: flex; align-items: center; font-size: 16px;">
+                    <span style="font-size: 24px; margin-right: 15px;">🏖️</span>
+                    <div>
+                        <strong>Yıllık İzin Bakiyeniz:</strong><br> Bu yıl <span style="font-size: 18px; font-weight: bold; background: #00bcd4; color: white; padding: 2px 6px; border-radius: 4px; margin: 0 3px;">{{ doktor.kalan_izin_hakki }}</span> gün hakkınız var.
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>📅 Yaklaşan Nöbetleriniz</h3> 
+                    {% for nobet in nobetler|slice:":3" %} 
+                        <div class="list-item" style="border-left-color: #0056b3; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong>{{ nobet.tarih|date:"d F Y" }}</strong> | {{ nobet.baslangic_saati|time:"H:i" }}
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <a href="{% url 'havuza_ekle' nobet.id %}" class="btn btn-warning btn-sm" style="font-size: 11px; padding: 4px 10px; border-radius: 12px; font-weight: bold; text-decoration: none; background-color: #ffc107; color: #212529;" onclick="return confirm('Emin misiniz?');">🏊‍♂️ Havuza Bırak</a>
+                                <a href="https://calendar.google.com/calendar/render?action=TEMPLATE&text={{ nobet.get_bolum_display|urlencode }}+N%C3%B6beti&dates={{ nobet.tarih|date:'Ymd' }}T{{ nobet.baslangic_saati|time:'His' }}/{{ nobet.tarih|date:'Ymd' }}T{{ nobet.bitis_saati|time:'His' }}" target="_blank" style="background: rgba(66, 133, 244, 0.1); color: #4285F4; padding: 4px 10px; border-radius: 12px; text-decoration: none; font-size: 11px; font-weight: bold; border: 1px solid rgba(66, 133, 244, 0.4);">📅 Takvime Ekle</a>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <p style="font-size: 14px;">Nöbetiniz bulunmuyor.</p>
+                    {% endfor %}
+                </div>
 
                 <div class="card">
                     <h3>🏖️ İzin Taleplerim</h3>
@@ -90,164 +198,160 @@
                         <button type="submit" style="background: #17a2b8; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold;">İzin Al</button>
                     </form>
                     
-                    {% for izin in izinler %}
-                        <div class="list-item" style="border-left-color: {% if izin.durum == 'onaylandi' %}#28a745{% elif izin.durum == 'reddedildi' %}#dc3545{% else %}#ffc107{% endif %}; display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <strong>{{ izin.tarih|date:"d F Y" }}</strong><br>
-                                <small style="color: #666; font-weight: bold;">{{ izin.get_durum_display }}</small>
+                    <div class="scroll-box"> 
+                        {% for izin in izinler %}
+                            <div class="list-item" style="border-left-color: {% if izin.durum == 'onaylandi' %}#28a745{% elif izin.durum == 'reddedildi' %}#dc3545{% else %}#ffc107{% endif %}; display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <strong>{{ izin.tarih|date:"d F Y" }}</strong><br>
+                                    <small style="color: #666; font-weight: bold;">{{ izin.get_durum_display }}</small>
+                                </div>
+                                {% if izin.durum == 'beklemede' %}
+                                    <a href="{% url 'izin_sil' izin.id %}" style="color: #dc3545; text-decoration: none; font-size: 20px; font-weight: bold; line-height: 1;" title="İptal Et">×</a>
+                                {% endif %}
                             </div>
-                            {% if izin.durum == 'beklemede' %}
-                                <a href="{% url 'izin_sil' izin.id %}" style="color: #dc3545; text-decoration: none; font-size: 20px; font-weight: bold; line-height: 1;" title="İptal Et">×</a>
-                            {% endif %}
-                        </div>
-                    {% empty %}
-                        <p style="font-size: 13px; color: #666;">Aktif izin talebiniz yok.</p>
-                    {% endfor %}
+                        {% empty %}
+                            <p style="font-size: 13px; color: #666;">Aktif izin talebiniz yok.</p>
+                        {% endfor %}
+                    </div>
                 </div>
 
                 <div class="card">
-                    <h3>📅 Yaklaşan Nöbetleriniz</h3>
-                    {% for nobet in nobetler|slice:":3" %} 
-                        <div class="list-item" style="border-left-color: #0056b3;">
-                            <strong>{{ nobet.tarih|date:"d F Y" }}</strong> | {{ nobet.baslangic_saati|time:"H:i" }}
-                            <a href="https://calendar.google.com/calendar/render?action=TEMPLATE&text={{ nobet.get_bolum_display|urlencode }}+N%C3%B6beti&dates={{ nobet.tarih|date:'Ymd' }}T{{ nobet.baslangic_saati|time:'His' }}/{{ nobet.tarih|date:'Ymd' }}T{{ nobet.bitis_saati|time:'His' }}&details=Kolay+gelsin+Doktorum!+Bug%C3%BCn+{{ nobet.get_bolum_display|urlencode }}+b%C3%B6l%C3%BCm%C3%BCnde+n%C3%B6bet%C3%A7isiniz.&location=Hastane" 
-   target="_blank" 
-   style="
-       display: inline-block;
-       background: rgba(66, 133, 244, 0.1); 
-       color: #4285F4; 
-       padding: 4px 10px;
-       border-radius: 12px;
-       text-decoration: none;
-       font-size: 11px;
-       font-weight: bold;
-       border: 1px solid rgba(66, 133, 244, 0.4);
-       transition: all 0.2s ease;
-       float: right; /* Kartın sağına yaslar */
-       margin-top: -2px;
-   "
-   onmouseover="this.style.background='#4285F4'; this.style.color='#fff';"
-   onmouseout="this.style.background='rgba(66, 133, 244, 0.1)'; this.style.color='#4285F4';">
-    📅 Takvime Ekle
-</a>
-                        </div>
-                    {% empty %}
-                        <p style="font-size: 14px;">Nöbetiniz bulunmuyor.</p>
-                    {% endfor %}
+                    <h3>🛑 Nöbet İstemediğim Günler</h3>
+                    <p style="font-size: 12px; color: #dc3545; margin-top:-10px; margin-bottom: 15px;">* Önceliğinizi düşürür.</p>
+                    <form method="POST" style="margin-bottom: 15px; display: flex; gap: 10px;">
+                        {% csrf_token %}
+                        <input type="date" name="tercih_tarih" required style="padding: 8px; border: 1px solid #ccc; border-radius: 4px; flex-grow: 1;">
+                        <button type="submit" style="background: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold;">Kısıtla</button>
+                    </form>
+                    
+                    <div class="scroll-box"> 
+                        {% for tercih in tercihler %}
+                            <div class="list-item" style="border-left-color: #dc3545;">
+                                <strong>{{ tercih.tarih|date:"d F Y" }}</strong><br>
+                                <small style="color: #666; font-weight: bold;">Algoritma Dikkate Alacak 🤖</small>
+                            </div>
+                        {% empty %}
+                            <p style="font-size: 13px; color: #666;">Kısıtladığınız gün yok.</p>
+                        {% endfor %}
+                    </div>
                 </div>
-                
 
                 <div class="card">
                     <h3>📥 Bana Gelen Talepler</h3>
-                    {% for talep in gelen_talepler %}
-                        <div class="list-item status-{{ talep.durum }}" style="display: flex; gap: 12px; align-items: center;">
-                            <div class="avatar-sm">{{ talep.talep_eden_doktor.kullanici.first_name|first|upper }}{{ talep.talep_eden_doktor.kullanici.last_name|first|upper }}</div>
-                            <div style="flex-grow: 1;">
-                                <strong>Kimden:</strong> {{ talep.talep_eden_doktor }}<br>
-                                <strong>Tarih:</strong> {{ talep.verilecek_nobet.tarih|date:"d M Y" }}
-                                {% if talep.durum == 'beklemede' %}
-                                    <div style="margin-top: 8px;">
-                                        <a href="{% url 'takas_cevapla' talep.id 'onayla' %}" style="color: #28a745; font-weight: bold; text-decoration: none; margin-right: 10px;">Onayla</a>
-                                        <a href="{% url 'takas_cevapla' talep.id 'reddet' %}" style="color: #dc3545; font-weight: bold; text-decoration: none;">Reddet</a>
-                                    </div>
-                                {% endif %}
+                    <div class="scroll-box"> 
+                        {% for talep in gelen_talepler %}
+                            <div class="list-item status-{{ talep.durum }}" style="display: flex; gap: 12px; align-items: center;">
+                                <div class="avatar-sm">{{ talep.talep_eden_doktor.kullanici.first_name|first|upper }}{{ talep.talep_eden_doktor.kullanici.last_name|first|upper }}</div>
+                                <div style="flex-grow: 1;">
+                                    <strong>Kimden:</strong> {{ talep.talep_eden_doktor }}<br>
+                                    <strong>Tarih:</strong> {{ talep.verilecek_nobet.tarih|date:"d M Y" }}
+                                    {% if talep.durum == 'beklemede' %}
+                                        <div style="margin-top: 8px;">
+                                            <a href="{% url 'takas_cevapla' talep.id 'onayla' %}" style="color: #28a745; font-weight: bold; text-decoration: none; margin-right: 10px;">Onayla</a>
+                                            <a href="{% url 'takas_cevapla' talep.id 'reddet' %}" style="color: #dc3545; font-weight: bold; text-decoration: none;">Reddet</a>
+                                        </div>
+                                    {% endif %}
+                                </div>
                             </div>
-                        </div>
-                    {% empty %}
-                        <p style="font-size: 13px; color: #666;">Talep yok.</p>
-                    {% endfor %}
+                        {% empty %}
+                            <p style="font-size: 13px; color: #666;">Talep yok.</p>
+                        {% endfor %}
+                    </div>
                 </div>
 
                 <div class="card">
                     <h3>📤 Gönderdiğim Talepler</h3>
-                    {% for talep in giden_talepler %}
-                        <div class="list-item status-{{ talep.durum }}" style="display: flex; gap: 12px; align-items: center;">
-                            <div class="avatar-sm" style="background: linear-gradient(135deg, #6c757d, #343a40);">{{ talep.hedef_doktor.kullanici.first_name|first|upper }}{{ talep.hedef_doktor.kullanici.last_name|first|upper }}</div>
-                            <div>
-                                <strong>Kime:</strong> {{ talep.hedef_doktor }}<br>
-                                <strong>Durum:</strong> {{ talep.get_durum_display }}
+                    <div class="scroll-box"> 
+                        {% for talep in giden_talepler %}
+                            <div class="list-item status-{{ talep.durum }}" style="display: flex; gap: 12px; align-items: center;">
+                                <div class="avatar-sm" style="background: linear-gradient(135deg, #6c757d, #343a40);">{{ talep.hedef_doktor.kullanici.first_name|first|upper }}{{ talep.hedef_doktor.kullanici.last_name|first|upper }}</div>
+                                <div>
+                                    <strong>Kime:</strong> {{ talep.hedef_doktor }}<br>
+                                    <strong>Durum:</strong> {{ talep.get_durum_display }}
+                                </div>
                             </div>
-                        </div>
-                    {% empty %}
-                        <p style="font-size: 13px; color: #666;">Gönderilen talep yok.</p>
-                    {% endfor %}
-                </div>  
-
+                        {% empty %}
+                            <p style="font-size: 13px; color: #666;">Gönderilen talep yok.</p>
+                        {% endfor %}
+                    </div>
+                </div> 
             </div>
         </div>
-    {% endif %}
+    {% endif %} 
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
 
-    {% if messages %}
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            {% for message in messages %}
-                Swal.fire({
-                    icon: '{% if message.tags == "error" %}error{% elif message.tags == "warning" %}warning{% else %}success{% endif %}',
-                    title: 'Bilgi',
-                    text: '{{ message }}',
-                    confirmButtonColor: '#0056b3',
-                    background: document.body.classList.contains('dark-mode') ? '#1e1e1e' : '#fff',
-                    color: document.body.classList.contains('dark-mode') ? '#f1f1f1' : '#545454'
-                });
-            {% endfor %}
+{% if messages %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        {% for message in messages %}
+            Swal.fire({
+                icon: '{% if message.tags == "error" %}error{% elif message.tags == "warning" %}warning{% else %}success{% endif %}',
+                title: 'Bilgi',
+                text: '{{ message }}',
+                confirmButtonColor: '#0056b3',
+                background: document.body.classList.contains('dark-mode') ? '#1e1e1e' : '#fff',
+                color: document.body.classList.contains('dark-mode') ? '#f1f1f1' : '#545454'
+            });
+        {% endfor %}
+    });
+</script>
+{% endif %} 
+
+<script>
+    // Gece Modu Hafıza ve Kontrol
+    const toggleBtn = document.getElementById('darkModeToggle');
+    const body = document.body;
+
+    if(localStorage.getItem('hastane_tema') === 'dark') {
+        body.classList.add('dark-mode');
+        if(toggleBtn) toggleBtn.textContent = '☀️';
+    }
+
+    if(toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+            body.classList.toggle('dark-mode');
+            if(body.classList.contains('dark-mode')) {
+                localStorage.setItem('hastane_tema', 'dark');
+                toggleBtn.textContent = '☀️';
+                toggleBtn.style.transform = "rotate(180deg)";
+            } else {
+                localStorage.setItem('hastane_tema', 'light');
+                toggleBtn.textContent = '🌙';
+                toggleBtn.style.transform = "rotate(0deg)";
+            }
         });
-    </script>
-    {% endif %} <script>
-      // Gece Modu Hafıza ve Kontrol
-      const toggleBtn = document.getElementById('darkModeToggle');
-      const body = document.body;
+    }
 
-      if(localStorage.getItem('hastane_tema') === 'dark') {
-          body.classList.add('dark-mode');
-          if(toggleBtn) toggleBtn.textContent = '☀️';
-      }
-
-      if(toggleBtn) {
-          toggleBtn.addEventListener('click', () => {
-              body.classList.toggle('dark-mode');
-              if(body.classList.contains('dark-mode')) {
-                  localStorage.setItem('hastane_tema', 'dark');
-                  toggleBtn.textContent = '☀️';
-                  toggleBtn.style.transform = "rotate(180deg)";
-              } else {
-                  localStorage.setItem('hastane_tema', 'light');
-                  toggleBtn.textContent = '🌙';
-                  toggleBtn.style.transform = "rotate(0deg)";
-              }
-          });
-      }
-
-      // Takvimi Çiz ve Renklendir
-      document.addEventListener('DOMContentLoaded', function() {
+    // Takvimi Çiz ve Renklendir
+    document.addEventListener('DOMContentLoaded', function() {
         var calendarEl = document.getElementById('calendar');
         if (calendarEl) {
             var calendar = new FullCalendar.Calendar(calendarEl, {
-              initialView: 'dayGridMonth',
-              locale: 'tr',
-              height: 500, 
-              headerToolbar: { left: 'prev,next', center: 'title', right: 'today' },
-              events: '{% url "nobet_verileri_json" %}', 
-              displayEventTime: false,
-              eventDisplay: 'block',
-              eventDidMount: function(info) {
-                if (info.event.extendedProps.description) {
-                  info.el.title = info.event.extendedProps.description;
-                  info.el.style.cursor = "pointer";
+                initialView: 'dayGridMonth',
+                locale: 'tr',
+                height: 500, 
+                headerToolbar: { left: 'prev,next', center: 'title', right: 'today' },
+                events: '{% url "nobet_verileri_json" %}', 
+                displayEventTime: false,
+                eventDisplay: 'block',
+                eventDidMount: function(info) {
+                    if (info.event.extendedProps.description) {
+                        info.el.title = info.event.extendedProps.description;
+                        info.el.style.cursor = "pointer";
+                    }
                 }
-              }
             });
             calendar.render();
         }
-      });
-    </script>
+    });
+</script>
 
-    {% if toplam_nobet > 0 %}
-    <script>
+{% if toplam_nobet > 0 %}
+<script>
 document.addEventListener('DOMContentLoaded', function() {
     var ctx = document.getElementById('nobetGrafigi');
     if (ctx) {
@@ -286,5 +390,92 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-    {% endif %} </body>
+{% endif %}
+
+<script>
+// Bildirim Menüsünü Aç/Kapat
+    const bellBtn = document.getElementById('bellToggle');
+    const dropdown = document.getElementById('notificationDropdown');
+    
+    if(bellBtn && dropdown) {
+        bellBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            dropdown.classList.toggle('show');
+        });
+        
+        // Ekranda boş bir yere tıklayınca menüyü kapat
+        document.addEventListener('click', function(e) {
+            if (!dropdown.contains(e.target) && e.target !== bellBtn) {
+                dropdown.classList.remove('show');
+            }
+        });
+    } 
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register("{% url 'service_worker' %}")
+                .then(function(registration) {
+                    console.log('ServiceWorker başarıyla kaydedildi!', registration.scope);
+                }, function(err) {
+                    console.log('ServiceWorker kaydı başarısız: ', err);
+                });
+            });
+        }
+    </script>
+
+    <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/dark.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    
+    <style>
+        /* Sadece bizim özel isimlendirdiğimiz VIP takvimleri hedef alıyoruz */
+        .vip-takvim-kutusu {
+            background-color: #ffffff !important;
+            color: #333333 !important;
+            border: 1px solid #ced4da !important;
+            border-radius: 6px !important;
+            padding: 12px 15px !important;
+            font-size: 15px !important;
+            width: 100% !important;
+            cursor: pointer !important;
+            box-sizing: border-box !important;
+            /* Şık Mor İkon */
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236f42c1'%3E%3Cpath d='M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM7 11h2v2H7v-2zm4 0h2v2h-2v-2zm4 0h2v2h-2v-2zm-8 4h2v2H7v-2zm4 0h2v2h-2v-2zm4 0h2v2h-2v-2z'/%3E%3C/svg%3E") !important;
+            background-repeat: no-repeat !important;
+            background-position: right 12px center !important;
+            background-size: 20px !important;
+            padding-right: 40px !important;
+            transition: all 0.3s;
+        }
+        
+        .vip-takvim-kutusu:focus {
+            border-color: #6f42c1 !important;
+            box-shadow: 0 0 0 3px rgba(111, 66, 193, 0.2) !important;
+            outline: none !important;
+        }
+
+        /* 🌙 Gece Moduna Uyum (Sadece doktor paneli için çalışır, admin sayfasını bozmaz) */
+        body.dark-mode .vip-takvim-kutusu {
+            background-color: #2a2a2a !important;
+            color: #f1f1f1 !important;
+            border-color: #444 !important;
+        }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/tr.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            flatpickr("input[type='date']", {
+                locale: "tr",
+                dateFormat: "Y-m-d",
+                altInput: true,
+                altFormat: "j F Y",
+                disableMobile: true,
+                // 🌟 İŞTE SİHİR BURADA: Flatpickr'ın oluşturduğu yeni kutuya zorla kendi ismimizi (class) veriyoruz!
+                altInputClass: "vip-takvim-kutusu" 
+                minDate: "today"
+            });
+        });
+    </script>
+</body>
 </html>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Sistem Hareketleri (Log)</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden; }
+        .header { background: #343a40; color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .header h2 { margin: 0; font-size: 20px; }
+        
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th, td { padding: 12px 20px; border-bottom: 1px solid #eee; font-size: 14px; }
+        th { background-color: #f8f9fa; color: #555; text-transform: uppercase; font-size: 12px; font-weight: bold; }
+        tr:hover { background-color: #f1f3f5; }
+        
+        /* İşlem Türü Renkleri */
+        .badge { padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; color: white; display: inline-block; text-align: center; min-width: 80px;}
+        .badge.ekleme { background-color: #28a745; } /* Yeşil */
+        .badge.degisim { background-color: #ffc107; color: #333; } /* Sarı */
+        .badge.silme { background-color: #dc3545; } /* Kırmızı */
+        
+        .kullanici { font-weight: bold; color: #0056b3; }
+        .zaman { color: #888; font-size: 13px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <h2>🕵️‍♂️ Sistem Hareketleri (Son 100 İşlem)</h2>
+            <a href="/admin/" style="color: white; text-decoration: none; font-size: 14px; background: rgba(255,255,255,0.2); padding: 8px 15px; border-radius: 5px;">← Panele Dön</a>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Tarih / Saat</th>
+                    <th>İşlemi Yapan</th>
+                    <th>İşlem Türü</th>
+                    <th>Etkilenen Kayıt</th>
+                    <th>Detay</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in loglar %}
+                <tr>
+                    <td class="zaman">{{ log.action_time|date:"d M Y - H:i" }}</td>
+                    <td class="kullanici">👤 {{ log.user.username }}</td>
+                    <td>
+                        {% if log.action_flag == 1 %}
+                            <span class="badge ekleme">➕ Eklendi</span>
+                        {% elif log.action_flag == 2 %}
+                            <span class="badge degisim">✏️ Değiştirildi</span>
+                        {% elif log.action_flag == 3 %}
+                            <span class="badge silme">🗑️ Silindi</span>
+                        {% endif %}
+                    </td>
+                    <td><strong>{{ log.content_type.name|title }}</strong>: {{ log.object_repr }}</td>
+                    <td style="color: #666;">{{ log.get_change_message|default:"-" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 30px; color: #777;">Henüz sistemde kayıtlı bir işlem bulunmuyor.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</body>
+</html>
