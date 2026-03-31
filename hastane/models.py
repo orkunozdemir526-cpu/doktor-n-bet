@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from datetime import timedelta
 from django.db.models import F
+from django.utils import timezone
 
 # 1. Poliklinik (Bölüm) Modeli
 class Poliklinik(models.Model):
@@ -182,41 +183,40 @@ class IzinTalebi(models.Model):
     def __str__(self):
         return f"{self.doktor} - İzin: {self.tarih} ({self.get_durum_display()})"
 
-    # 🌟 1. AŞAMA: KONTROL MERKEZİ 🌟
+    # 🌟 YENİ: ZAMAN KİLİDİ KURALI
     def clean(self):
-        eski_durum = None
-        if self.pk:
-            eski_durum = IzinTalebi.objects.get(pk=self.pk).durum
-            
-        if self.durum == 'onaylandi' and eski_durum != 'onaylandi':
-            guncel_doktor = Doktor.objects.get(pk=self.doktor.pk)
-            if guncel_doktor.kalan_izin_hakki <= 0:
-                raise ValidationError({'durum': f"⚠️ Dr. {guncel_doktor.kullanici.get_full_name()} için yeterli izin hakkı bulunmamaktadır! (Kalan Bakiye: 0 Gün)"})
         super().clean()
+        if self.pk: # Sadece var olan (önceden açılmış) bir izin güncelleniyorsa kontrol et
+            eski = IzinTalebi.objects.get(pk=self.pk)
+            bugun = timezone.now().date()
+            
+            # Eğer izin tarihi geçmişte kalmışsa VE durumu değiştirilmeye çalışılıyorsa:
+            if self.tarih < bugun and self.durum != eski.durum:
+                raise ValidationError("🚨 Zaman Kilidi: Geçmiş tarihteki (kullanılmış) bir iznin durumunu sonradan değiştiremezsiniz!")
 
     # 🌟 2. AŞAMA: MATEMATİK MERKEZİ (Doğrudan SQL Müdahalesi) 🌟
-    # IzinTalebi modeli içindeki save() fonksiyonunun güncellenmiş hali:
+    # 🌟 GÜNCELLENMİŞ KAYDETME MOTORU
     def save(self, *args, **kwargs):
+        # 1. Kaydetmeden önce Zaman Kilidini zorla çalıştır
+        self.clean() 
+        
         eski_durum = None
         if self.pk:
             eski_durum = IzinTalebi.objects.get(pk=self.pk).durum
 
-        # 1. Önce izin kaydını veritabanına kaydediyoruz
+        # 2. İzni veritabanına kaydet
         super().save(*args, **kwargs)
 
-        # 2. Eğer durum değişmişse işlemleri tetikle
+        # 3. Bakiye ve Bildirim İşlemleri
         if eski_durum != self.durum:
             
-            # SENARYO A: İzin Yeni Onaylandıysa (Bakiyeden Düş ve Bildirim At)
             if self.durum == 'onaylandi':
                 Doktor.objects.filter(pk=self.doktor.pk).update(kalan_izin_hakki=F('kalan_izin_hakki') - 1)
                 Bildirim.objects.create(doktor=self.doktor, mesaj=f"🏖️ {self.tarih.strftime('%d.%m.%Y')} tarihli yıllık izin talebiniz Başhekimlik tarafından ONAYLANDI.")
                 
-            # SENARYO B: Önceden Onaylı Bir İzin İptal/Red Ediliyorsa (Bakiyeyi Geri Ver)
             elif eski_durum == 'onaylandi':
                 Doktor.objects.filter(pk=self.doktor.pk).update(kalan_izin_hakki=F('kalan_izin_hakki') + 1)
                 
-            # SENARYO C: İzin Reddedildiyse (Nereden gelirse gelsin Red Bildirimi At)
             if self.durum == 'reddedildi':
                 Bildirim.objects.create(doktor=self.doktor, mesaj=f"❌ {self.tarih.strftime('%d.%m.%Y')} tarihli yıllık izin talebiniz REDDEDİLDİ.")
 
