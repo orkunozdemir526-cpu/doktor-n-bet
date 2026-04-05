@@ -1,10 +1,10 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
-from django.http import JsonResponse, HttpResponse # HttpResponse eklendi
+from django.http import JsonResponse, HttpResponse
 from datetime import datetime, timedelta, time
-import pandas as pd # Excel için eklendi
-import io           # Excel için eklendi
+import pandas as pd 
+import io           
 from .models import Doktor, Nobet, NobetTakas, Poliklinik, IzinTalebi, NobetHavuzu, NobetTercihi, Duyuru, Bildirim, ResmiTatil
 from .forms import TakasTalebiForm
 from django.core.mail import send_mail
@@ -17,12 +17,10 @@ from django.utils import timezone
 from decimal import Decimal
 import threading
 
-# 🌟 SİHİRLİ ASİSTAN: Mailleri arka planda (doktoru bekletmeden) gönderir
+# E-posta gönderim işlemlerini asenkron (arka planda) yürüten yardımcı fonksiyon
 def arka_planda_mail_gonder(subject, message, recipient_list):
     def mail_motoru():
         try:
-            from django.core.mail import send_mail
-            from django.conf import settings
             send_mail(
                 subject=subject,
                 message=message,
@@ -31,55 +29,53 @@ def arka_planda_mail_gonder(subject, message, recipient_list):
                 fail_silently=True,
             )
         except Exception as e:
-            print(f"Arka plan mail hatası: {e}")
+            print(f"E-posta gönderim hatası: {e}")
 
-    # İşlemi ana sistemden ayırıp arka planda bağımsız bir iş parçacığı (Thread) olarak başlat
     t = threading.Thread(target=mail_motoru)
     t.start()
 
-# 1. DOKTOR KONTROL PANELİ
+
+# --- Temel İşlemler ve Doktor Paneli ---
+
 @login_required(login_url='/hastane/giris/')
 def doktor_paneli(request):
     try:
         doktor = Doktor.objects.get(kullanici=request.user)
-        bugun = timezone.now().date() # Sistemin şu anki tarihini alıyoruz
+        bugun = timezone.now().date() 
         
-        # --- İzin ve Tercih ekleme kısmı ---
+        # İzin ve Kısıtlama taleplerinin işlenmesi
         if request.method == 'POST':
             if 'izin_tarih' in request.POST:
                 tarih_str = request.POST.get('izin_tarih')
                 izin_tarihi = datetime.strptime(tarih_str, '%Y-%m-%d').date()
                 
-                # 🌟 GEÇMİŞ ZAMAN KONTROLÜ
+                # Geçmiş tarihli işlemlerin engellenmesi
                 if izin_tarihi < bugun:
-                    messages.error(request, "❌ Hata: Geçmiş bir tarih için izin talebinde bulunamazsınız!")
+                    messages.error(request, "Geçmiş bir tarih için izin talebinde bulunamazsınız.")
                 elif not IzinTalebi.objects.filter(doktor=doktor, tarih=izin_tarihi).exists():
                     IzinTalebi.objects.create(doktor=doktor, tarih=izin_tarihi)
-                    messages.success(request, "🏖️ İzin talebiniz Başhekime iletildi!")
+                    messages.success(request, "İzin talebiniz Başhekimliğe iletildi.")
                 return redirect('doktor_paneli')
                 
-            # YENİ EKLENEN TERCİH KISMI
             elif 'tercih_tarih' in request.POST:
                 tarih_str = request.POST.get('tercih_tarih')
                 tercih_tarihi = datetime.strptime(tarih_str, '%Y-%m-%d').date()
                 
-                # 🌟 GEÇMİŞ ZAMAN KONTROLÜ
                 if tercih_tarihi < bugun:
-                    messages.error(request, "❌ Hata: Geçmiş bir tarihi kısıtlayamazsınız!")
+                    messages.error(request, "Geçmiş bir tarihi kısıtlayamazsınız.")
                 elif not NobetTercihi.objects.filter(doktor=doktor, tarih=tercih_tarihi).exists():
                     NobetTercihi.objects.create(doktor=doktor, tarih=tercih_tarihi)
-                    messages.success(request, f"🛑 {tarih_str} tarihi için nöbet kısıtlamanız kaydedildi.")
+                    messages.success(request, f"{tarih_str} tarihi için nöbet kısıtlamanız kaydedildi.")
                 return redirect('doktor_paneli')
 
-        # 🌟 YENİ: ZAMAN FİLTRESİ - SADECE BUGÜN VE GELECEKTEKİ NÖBET/TAKASLARI GETİR
+        # İlgili doktora ait güncel verilerin sorgulanması (Tarihi geçenler filtrelenir)
         nobetler = Nobet.objects.filter(doktor=doktor, tarih__gte=bugun).order_by('tarih')
         giden_talepler = NobetTakas.objects.filter(talep_eden_doktor=doktor, verilecek_nobet__tarih__gte=bugun).order_by('-olusturulma_tarihi')
         gelen_talepler = NobetTakas.objects.filter(hedef_doktor=doktor, verilecek_nobet__tarih__gte=bugun).order_by('-olusturulma_tarihi')
-        
         izinler = IzinTalebi.objects.filter(doktor=doktor).order_by('tarih')
         tercihler = NobetTercihi.objects.filter(doktor=doktor).order_by('tarih')
 
-        # --- İSTATİSTİK HESAPLAMA ---
+        # Nöbet dağılım istatistiklerinin hesaplanması
         yesil_sayisi = nobetler.filter(bolum='YESIL').count()
         sari_sayisi = nobetler.filter(bolum='SARI').count()
         kirmizi_sayisi = nobetler.filter(bolum='KIRMIZI').count()
@@ -90,10 +86,10 @@ def doktor_paneli(request):
         bildirim_sayisi = bildirimler.count()
 
     except Doktor.DoesNotExist:
-        # Eğer giren kişi doktor değilse (Örn: Süper Admin) çökmeyi engellemek için boş değerler atıyoruz
+        # Yönetici hesapları için varsayılan değer atamaları
         doktor, nobetler, giden_talepler, gelen_talepler, izinler, tercihler = None, [], [], [], [], []
         yesil_sayisi = sari_sayisi = kirmizi_sayisi = toplam_nobet = 0
-        duyurular = Duyuru.objects.filter(aktif_mi=True) # Admin de duyuruları görsün
+        duyurular = Duyuru.objects.filter(aktif_mi=True) 
         bildirimler = []
         bildirim_sayisi = 0
 
@@ -116,13 +112,13 @@ def doktor_paneli(request):
 
 @login_required(login_url='/hastane/giris/')
 def izin_sil(request, izin_id):
-    # Sadece kendi iznini silebilmesi için güvenlik önlemi
     izin = get_object_or_404(IzinTalebi, id=izin_id, doktor__kullanici=request.user)
     izin.delete()
     return redirect('doktor_paneli')
 
-# 2. YENİ TAKAS TALEBİ OLUŞTURMA
-# 2. YENİ TAKAS TALEBİ OLUŞTURMA
+
+# --- Nöbet Takas İşlemleri ---
+
 @login_required(login_url='/hastane/giris/')
 def takas_olustur(request):
     try:
@@ -130,9 +126,9 @@ def takas_olustur(request):
     except Doktor.DoesNotExist:
         return redirect('doktor_paneli')
 
+    form = TakasTalebiForm(request.POST or None, doktor=doktor)
+
     if request.method == 'POST':
-        form = TakasTalebiForm(request.POST, doktor=doktor)
-        
         form.instance.talep_eden_doktor = doktor 
         
         if form.is_valid():
@@ -140,48 +136,44 @@ def takas_olustur(request):
             yeni_takas.durum = 'beklemede'
             yeni_takas.save()
             
-            # 🌟 ÇÖZÜM: HTML KODU İÇERMEYEN, TEMİZ VE KISA BİLDİRİM
+            # Takas işlemi sonrası sistem içi bildirim oluşturulması
             istenen = f" ({yeni_takas.alinacak_nobet.tarih.strftime('%d.%m')})" if yeni_takas.alinacak_nobet else ""
             Bildirim.objects.create(
                 doktor=yeni_takas.hedef_doktor, 
-                mesaj=f"🔄 Dr. {doktor.kullanici.last_name} sizden takas istiyor{istenen}. Lütfen paneldeki 'Bana Gelen Talepler' kısmından yanıtlayın."
+                mesaj=f"Dr. {doktor.kullanici.last_name} sizden takas talep ediyor{istenen}. Lütfen paneldeki 'Gelen Talepler' kısmından yanıtlayın."
             )
             
-            # --- Mail Kodları ---
+            # E-posta bildiriminin asenkron olarak tetiklenmesi
             hedef_email = yeni_takas.hedef_doktor.kullanici.email
             if hedef_email: 
                 giris_linki = "http://127.0.0.1:8000/hastane/giris/"
                 mesaj = (f"Merhaba Dr. {yeni_takas.hedef_doktor.kullanici.first_name},\n\n"
                          f"Dr. {doktor.kullanici.first_name} {doktor.kullanici.last_name} size bir nöbet takas talebi gönderdi.\n"
-                         "Lütfen doktor paneline girerek talebi onaylayın veya reddedin.\n\n"
-                         f"Sisteme Giriş Yapmak İçin Tıklayın:\n{giris_linki}\n\n"
-                         "İyi çalışmalar.")
-                # 🌟 HIZLANDIRICI: Eski yavaş 'send_mail' yerine kendi arka plan asistanımızı çağırıyoruz!
+                         "Lütfen doktor paneline girerek talebi yanıtlayın.\n\n"
+                         f"Sisteme Giriş Linki:\n{giris_linki}\n\n"
+                         "İyi çalışmalar dileriz.")
+                
                 arka_planda_mail_gonder(
-                    subject='🔔 Yeni Nöbet Takas Talebi',
+                    subject='Yeni Nöbet Takas Talebi',
                     message=mesaj,
                     recipient_list=[hedef_email]
                 )
                 
-            messages.success(request, "🔄 Takas talebiniz başarıyla gönderildi!")
+            messages.success(request, "Takas talebiniz başarıyla oluşturuldu.")
             return redirect('doktor_paneli')
         else:
-            messages.error(request, "⚠️ Takas talebi oluşturulurken hata oluştu. Seçimlerinizi kontrol edin.")
-    else:
-        form = TakasTalebiForm(doktor=doktor)   
-
+            messages.error(request, "Takas talebi oluşturulurken bir hata meydana geldi. Lütfen verileri kontrol edin.")
+            
     return render(request, 'hastane/takas_olustur.html', {'form': form, 'doktor': doktor})
 
-# 3. AJAX: HEDEF DOKTORUN NÖBETLERİNİ GETİRME
 @login_required(login_url='/hastane/giris/')
 def load_nobetler(request):
+    # AJAX isteği ile hedef doktorun güncel nöbetlerinin filtrelenmesi
     doktor_id = request.GET.get('doktor_id')
     bugun = timezone.now().date()
-    # 🌟 ZAMAN KİLİDİ EKLENDİ (tarih__gte=bugun)
     nobetler = Nobet.objects.filter(doktor_id=doktor_id, tarih__gte=bugun).order_by('tarih')
     return render(request, 'hastane/nobet_dropdown_list_options.html', {'nobetler': nobetler})
 
-# 4. TAKAS TALEBİNE CEVAP VERME (ONAY/RED)
 @login_required(login_url='/hastane/giris/')
 def takas_cevapla(request, talep_id, cevap):
     doktor = get_object_or_404(Doktor, kullanici=request.user)
@@ -194,7 +186,7 @@ def takas_cevapla(request, talep_id, cevap):
         verilen_nobet = talep.verilecek_nobet
         verilen_nobet.doktor = talep.hedef_doktor
         verilen_nobet.save()
-        messages.success(request, "✅ Takas talebini onayladınız!")
+        messages.success(request, "Takas talebi başarıyla onaylandı.")
 
         if talep.alinacak_nobet:
             alinan_nobet = talep.alinacak_nobet
@@ -204,46 +196,115 @@ def takas_cevapla(request, talep_id, cevap):
         talep.durum = 'onaylandi'
         talep.save()
         
-        # 🌟 BİLDİRİM: Takas onaylandığında karşı tarafa bildir
         Bildirim.objects.create(
             doktor=talep.talep_eden_doktor, 
-            mesaj=f"🤝 Dr. {doktor.kullanici.last_name} takas talebinizi KABUL ETTİ. ({talep.verilecek_nobet.tarih.strftime('%d.%m')})"
+            mesaj=f"Dr. {doktor.kullanici.last_name} takas talebinizi onayladı. ({talep.verilecek_nobet.tarih.strftime('%d.%m')})"
         )
 
     elif cevap == 'reddet':
         talep.durum = 'reddedildi'
         talep.save()
-        messages.error(request, "❌ Takas talebini reddettiniz!") 
+        messages.error(request, "Takas talebi reddedildi.") 
         
-        # 🌟 BİLDİRİM: Takas reddedildiğinde karşı tarafa bildir
         Bildirim.objects.create(
             doktor=talep.talep_eden_doktor, 
-            mesaj=f"❌ Dr. {doktor.kullanici.last_name} takas talebinizi REDDETTİ."
+            mesaj=f"Dr. {doktor.kullanici.last_name} takas talebinizi reddetti."
         )
 
-    # --- MAİL GÖNDERME KISMI ---
     talep_eden_email = talep.talep_eden_doktor.kullanici.email
     if talep_eden_email:
         giris_linki = "http://127.0.0.1:8000/hastane/giris/"
-        durum_yazisi = "ONAYLADI ✅" if cevap == 'onayla' else "REDDETTİ ❌"
-        mesaj = f"Merhaba Dr. {talep.talep_eden_doktor.kullanici.first_name},\n\n"
-        mesaj += f"Dr. {doktor.kullanici.first_name} {doktor.kullanici.last_name} nöbet takas talebinizi {durum_yazisi}.\n\n"
-        mesaj += f"Sisteme Giriş Yapmak İçin Tıklayın:\n{giris_linki}\n\n"
-        mesaj += "Bilginize sunar, iyi çalışmalar dileriz."
+        durum_yazisi = "ONAYLADI" if cevap == 'onayla' else "REDDETTİ"
+        mesaj = (f"Merhaba Dr. {talep.talep_eden_doktor.kullanici.first_name},\n\n"
+                 f"Dr. {doktor.kullanici.first_name} {doktor.kullanici.last_name} nöbet takas talebinizi {durum_yazisi}.\n\n"
+                 f"Sisteme Giriş Linki:\n{giris_linki}\n\n"
+                 "İyi çalışmalar dileriz.")
         
-        send_mail(
+        arka_planda_mail_gonder(
             subject=f'Takas Talebiniz {durum_yazisi}',
             message=mesaj,
-            from_email=None,
-            recipient_list=[talep_eden_email],
-            fail_silently=True,
+            recipient_list=[talep_eden_email]
         )
 
     return redirect('doktor_paneli')
 
-# 5. TAKVİM İÇİN AKILLI VE RENKLİ JSON VERİSİ (SADECE KİŞİSEL NÖBETLER)
+
+# --- Nöbet Havuzu (Açık Pazar) İşlemleri ---
+
+@login_required(login_url='/hastane/giris/')
+def nobet_havuzu(request):
+    doktor = get_object_or_404(Doktor, kullanici=request.user)
+    bugun = timezone.now().date()
+    
+    acik_ilanlar = NobetHavuzu.objects.filter(durum='aktif', nobet__tarih__gte=bugun).exclude(olusturan_doktor=doktor).order_by('nobet__tarih')
+    kendi_ilanlarim = NobetHavuzu.objects.filter(olusturan_doktor=doktor, durum='aktif', nobet__tarih__gte=bugun).order_by('nobet__tarih')
+    
+    return render(request, 'hastane/nobet_havuzu.html', {
+        'acik_ilanlar': acik_ilanlar, 
+        'kendi_ilanlarim': kendi_ilanlarim,
+        'doktor': doktor
+    })
+
+@login_required(login_url='/hastane/giris/')
+def havuza_ekle(request, nobet_id):
+    doktor = get_object_or_404(Doktor, kullanici=request.user)
+    nobet = get_object_or_404(Nobet, id=nobet_id, doktor=doktor)
+    
+    if not hasattr(nobet, 'nobethavuzu'):
+        NobetHavuzu.objects.create(nobet=nobet, olusturan_doktor=doktor)
+        messages.success(request, "Nöbetiniz başarıyla havuza eklendi.")
+        
+        meslektaslar = Doktor.objects.filter(poliklinik=doktor.poliklinik).exclude(pk=doktor.pk)
+        for dr in meslektaslar:
+            Bildirim.objects.create(
+                doktor=dr, 
+                mesaj=f"Nöbet Havuzuna yeni bir nöbet eklendi ({nobet.tarih.strftime('%d.%m')}). Nöbet Havuzu sayfasından inceleyebilirsiniz."
+            )
+    else:
+        messages.warning(request, "Bu nöbet halihazırda havuzda bulunmaktadır.")
+        
+    return redirect('doktor_paneli')
+
+@login_required(login_url='/hastane/giris/')
+def havuzdan_al(request, havuz_id):
+    yeni_doktor = get_object_or_404(Doktor, kullanici=request.user)
+    ilan = get_object_or_404(NobetHavuzu, id=havuz_id, durum='aktif')
+    
+    if ilan.olusturan_doktor == yeni_doktor:
+        messages.error(request, "Kendi oluşturduğunuz ilanı devralamazsınız.")
+        return redirect('nobet_havuzu')
+        
+    eski_doktor = ilan.nobet.doktor
+    
+    ilan.nobet.doktor = yeni_doktor
+    ilan.nobet.save()
+    ilan.durum = 'alindi'
+    ilan.save()
+    
+    Bildirim.objects.create(
+        doktor=eski_doktor,
+        mesaj=f"{ilan.nobet.tarih.strftime('%d.%m.%Y')} tarihli nöbetiniz havuz üzerinden Dr. {yeni_doktor.kullanici.last_name} tarafından devralınmıştır."
+    )
+    
+    if eski_doktor.kullanici.email:
+        mesaj = (f"Merhaba Dr. {eski_doktor.kullanici.first_name},\n\n"
+                 f"{ilan.nobet.tarih.strftime('%d.%m.%Y')} tarihindeki nöbetiniz Dr. {yeni_doktor.kullanici.get_full_name()} tarafından havuzdan alınmıştır.\n\n"
+                 "İyi çalışmalar dileriz.")
+        arka_planda_mail_gonder(
+            subject='Nöbetiniz Devredildi',
+            message=mesaj,
+            recipient_list=[eski_doktor.kullanici.email]
+        )
+        
+    messages.success(request, f"{ilan.nobet.tarih.strftime('%d.%m.%Y')} tarihli nöbet başarıyla üzerinize kaydedildi.")
+    return redirect('doktor_paneli')   
+
+
+# --- JSON Veri ve Takvim Entegrasyonları ---
+
 @login_required(login_url='/hastane/giris/')
 def nobet_verileri_json(request):
+    # Takvim eklentisi (FullCalendar) için nöbet verilerinin JSON formatına dönüştürülmesi
     try:
         doktor = Doktor.objects.get(kullanici=request.user)
         nobetler = Nobet.objects.filter(doktor=doktor)
@@ -258,16 +319,16 @@ def nobet_verileri_json(request):
         if hasattr(nobet, 'bolum'):
             if nobet.bolum == 'YESIL':
                 renk = '#28a745'
-                bolum_baslik = '🟢 Yeşil Alan'
+                bolum_baslik = 'Yeşil Alan'
             elif nobet.bolum == 'SARI':
                 renk = '#ffc107'
-                bolum_baslik = '🟡 Sarı Alan'
+                bolum_baslik = 'Sarı Alan'
             elif nobet.bolum == 'KIRMIZI':
                 renk = '#dc3545'
-                bolum_baslik = '🔴 Kırmızı Alan'
+                bolum_baslik = 'Kırmızı Alan'
         
         saat = nobet.baslangic_saati.strftime('%H:%M')
-        aciklama = f"⏰ Saat: {saat}"
+        aciklama = f"Saat: {saat}"
 
         nobet_listesi.append({
             'title': bolum_baslik,
@@ -280,7 +341,9 @@ def nobet_verileri_json(request):
         
     return JsonResponse(nobet_listesi, safe=False)
 
-# 6. OTOMATİK NÖBET PLANLAYICI ALGORİTMASI
+
+# --- Algoritmik Nöbet Planlama Modülü ---
+
 @staff_member_required
 def nobet_planla(request):
     poliklinikler = Poliklinik.objects.all()
@@ -294,14 +357,15 @@ def nobet_planla(request):
         doktor_sayisi = len(meslektaslar)
 
         if doktor_sayisi == 0:
-             return render(request, 'hastane/nobet_planla.html', {'error': 'Bu poliklinikte kayıtlı doktor bulunamadı!', 'poliklinikler': poliklinikler})
+             return render(request, 'hastane/nobet_planla.html', {'error': 'Bu poliklinikte kayıtlı doktor bulunamadı.', 'poliklinikler': poliklinikler})
 
         try:
             baslangic = datetime.strptime(baslangic_str, '%Y-%m-%d').date()
             bitis = datetime.strptime(bitis_str, '%Y-%m-%d').date()
         except (ValueError, TypeError):
-            return render(request, 'hastane/nobet_planla.html', {'error': 'Geçersiz tarih.', 'poliklinikler': poliklinikler})
+            return render(request, 'hastane/nobet_planla.html', {'error': 'Geçersiz tarih girişi yapıldı.', 'poliklinikler': poliklinikler})
         
+        # Belirtilen tarih aralığındaki mevcut nöbet kayıtlarının temizlenmesi
         Nobet.objects.filter(
             tarih__range=[baslangic, bitis], 
             doktor__poliklinik_id=secilen_poliklinik_id
@@ -310,6 +374,7 @@ def nobet_planla(request):
         gun_sayisi = (bitis - baslangic).days + 1
         current_date = baslangic
         
+        # Algoritma için yıpranma puanı ve frekans sayaçlarının ilklendirilmesi
         doktor_nobet_sayilari = {dr: 0 for dr in meslektaslar}
         doktor_son_nobet = {dr: None for dr in meslektaslar}
         doktor_puanlari = {dr: 0.0 for dr in meslektaslar} 
@@ -332,6 +397,7 @@ def nobet_planla(request):
             
             istenmeyen_doktorlar = [dr for dr in meslektaslar if NobetTercihi.objects.filter(doktor=dr, tarih=current_date).exists()]
             
+            # Tarihin niteliğine (hafta sonu/resmi tatil) göre yıpranma katsayısının belirlenmesi
             is_haftasonu = current_date.weekday() >= 5
             bugun_tatil_mi = ResmiTatil.objects.filter(tarih=current_date, carpan_etkisi=True).exists()
             
@@ -342,12 +408,14 @@ def nobet_planla(request):
             else:
                 gunun_baz_puani = 1.0  
             
+            # Adalet algoritması: Doktorların yıpranma puanı ve nöbet sayısına göre önceliklendirilmesi
             musait_doktorlar.sort(key=lambda x: (
                 1 if x in istenmeyen_doktorlar else 0, 
                 doktor_puanlari[x],                    
                 doktor_nobet_sayilari[x]               
             ))
             
+            # Liyakat esasına göre sıralanmış doktorların kıdem gruplarına ayrılması
             kidemliler = [dr for dr in musait_doktorlar if dr.kidem == Doktor.Kidem.KIDEMLI]
             ortalar = [dr for dr in musait_doktorlar if dr.kidem == Doktor.Kidem.ORTA_KIDEMLI]
             acemiler = [dr for dr in musait_doktorlar if dr.kidem == Doktor.Kidem.ACEMI]
@@ -371,6 +439,7 @@ def nobet_planla(request):
                     
             bolumler = [Nobet.Bolum.KIRMIZI, Nobet.Bolum.SARI, Nobet.Bolum.YESIL]
             
+            # Atanan doktorların veritabanına kaydedilmesi ve puanlarının güncellenmesi
             for idx, secilen_doktor in enumerate(atanan_doktorlar):
                 if not secilen_doktor:
                     continue
@@ -392,6 +461,7 @@ def nobet_planla(request):
             
             current_date += timedelta(days=1)
             
+        # Oluşturulan nöbet planının Excel formatında dışa aktarılması
         yeni_nobetler = Nobet.objects.filter(
             tarih__range=[baslangic, bitis], 
             doktor__poliklinik_id=secilen_poliklinik_id
@@ -411,7 +481,6 @@ def nobet_planla(request):
             })
         
         df = pd.DataFrame(data)
-        
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             df.to_excel(writer, index=False, sheet_name='Nöbet Planı')
@@ -426,22 +495,20 @@ def nobet_planla(request):
         temiz_isim = secilen_poli.isim.replace(" ", "_")
         filename = f"{temiz_isim}_Otomatik_Nobet.xlsx"
 
-        try:
-            alici_listesi = [dr.kullanici.email for dr in meslektaslar if dr.kullanici.email]
-            
-            if alici_listesi:
-                giris_linki = "http://127.0.0.1:8000/hastane/giris/"
-                mesaj_icerigi = f"""Merhaba,\n\n{baslangic_str} ile {bitis_str} tarihleri arasındaki yeni nöbet programınız sisteme yüklenmiştir.\n\nLütfen sisteme giriş yaparak kendi nöbet günlerinizi kontrol ediniz.\n\nSisteme Giriş Yapmak İçin Tıklayın:\n{giris_linki}\n\nİyi çalışmalar dileriz,\nHastane Yönetimi"""
-
-                send_mail(
-                    subject=f'{secilen_poli.isim} Nöbet Programı Yayınlandı 📅',
-                    message=mesaj_icerigi,
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=alici_listesi,
-                    fail_silently=True, 
-                )
-        except Exception as e:
-            print(f"Toplu nöbet maili gönderilirken hata oluştu: {e}")
+        # İlgili poliklinik personeline planlamanın tamamlandığına dair bilgilendirme e-postası
+        alici_listesi = [dr.kullanici.email for dr in meslektaslar if dr.kullanici.email]
+        if alici_listesi:
+            giris_linki = "http://127.0.0.1:8000/hastane/giris/"
+            mesaj_icerigi = (f"Merhaba,\n\n"
+                             f"{baslangic_str} ile {bitis_str} tarihleri arasındaki yeni nöbet programınız sisteme yüklenmiştir.\n"
+                             "Lütfen sisteme giriş yaparak kendi nöbet günlerinizi kontrol ediniz.\n\n"
+                             f"Sisteme Giriş Linki:\n{giris_linki}\n\n"
+                             "İyi çalışmalar dileriz.")
+            arka_planda_mail_gonder(
+                subject=f'{secilen_poli.isim} Nöbet Programı Yayınlandı',
+                message=mesaj_icerigi,
+                recipient_list=alici_listesi
+            )
         
         response = HttpResponse(output, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
@@ -449,91 +516,8 @@ def nobet_planla(request):
 
     return render(request, 'hastane/nobet_planla.html', {'poliklinikler': poliklinikler})
 
-# =========================================================
-# 🌟 AŞAMA 1: NÖBET HAVUZU (AÇIK PAZAR) VİDEWLARI 🌟
-# =========================================================
 
-# 1. Havuzu Görüntüleme Sayfası
-@login_required(login_url='/hastane/giris/')
-def nobet_havuzu(request):
-    doktor = get_object_or_404(Doktor, kullanici=request.user)
-    bugun = timezone.now().date()
-    
-    # 🌟 ZAMAN FİLTRESİ: Günü geçmiş nöbetleri havuzdan gizle (nobet__tarih__gte=bugun)
-    acik_ilanlar = NobetHavuzu.objects.filter(durum='aktif', nobet__tarih__gte=bugun).exclude(olusturan_doktor=doktor).order_by('nobet__tarih')
-    kendi_ilanlarim = NobetHavuzu.objects.filter(olusturan_doktor=doktor, durum='aktif', nobet__tarih__gte=bugun).order_by('nobet__tarih')
-    
-    return render(request, 'hastane/nobet_havuzu.html', {
-        'acik_ilanlar': acik_ilanlar, 
-        'kendi_ilanlarim': kendi_ilanlarim,
-        'doktor': doktor
-    })
-
-# 2. Doktorun Kendi Nöbetini Havuza Bırakması (Havuz fonksiyonu)
-@login_required(login_url='/hastane/giris/')
-def havuza_ekle(request, nobet_id):
-    doktor = get_object_or_404(Doktor, kullanici=request.user)
-    nobet = get_object_or_404(Nobet, id=nobet_id, doktor=doktor)
-    
-    if not hasattr(nobet, 'nobethavuzu'):
-        NobetHavuzu.objects.create(nobet=nobet, olusturan_doktor=doktor)
-        messages.success(request, "📢 Nöbetiniz başarıyla havuza ilan olarak bırakıldı!")
-        
-        meslektaslar = Doktor.objects.filter(poliklinik=doktor.poliklinik).exclude(pk=doktor.pk)
-        
-        for dr in meslektaslar:
-            # 🌟 ÇÖZÜM: KISA VE HTML İÇERMEYEN BİLDİRİM
-            Bildirim.objects.create(
-                doktor=dr, 
-                mesaj=f"🌊 Nöbet Havuzuna yeni bir nöbet düştü! ({nobet.tarih.strftime('%d.%m')}) Hemen 'Nöbet Havuzu' sayfasına giderek alabilirsiniz."
-            )
-    else:
-        messages.warning(request, "⚠️ Bu nöbet zaten havuzda bekliyor!")
-        
-    return redirect('doktor_paneli')
-    
-# 3. Başka Bir Doktorun Havuzdan Nöbeti Alması (Ve Sihirli Mail)
-@login_required(login_url='/hastane/giris/')
-def havuzdan_al(request, havuz_id):
-    yeni_doktor = get_object_or_404(Doktor, kullanici=request.user)
-    ilan = get_object_or_404(NobetHavuzu, id=havuz_id, durum='aktif')
-    
-    if ilan.olusturan_doktor == yeni_doktor:
-        messages.error(request, "❌ Kendi ilanınızı alamazsınız!")
-        return redirect('nobet_havuzu')
-        
-    eski_doktor = ilan.nobet.doktor
-    
-    ilan.nobet.doktor = yeni_doktor
-    ilan.nobet.save()
-    
-    ilan.durum = 'alindi'
-    ilan.save()
-    
-    # 🌟 BİLDİRİM: Nöbeti devreden doktora sistem içi bildirim at
-    Bildirim.objects.create(
-        doktor=eski_doktor,
-        mesaj=f"🏊‍♂️ {ilan.nobet.tarih.strftime('%d.%m.%Y')} tarihli nöbetiniz havuzdan Dr. {yeni_doktor.kullanici.last_name} tarafından ALINDI."
-    )
-    
-    try:
-        if eski_doktor.kullanici.email:
-            send_mail(
-                subject='🎉 Nöbetiniz Havuzdan Alındı!',
-                message=f"Merhaba Dr. {eski_doktor.kullanici.first_name},\n\n{ilan.nobet.tarih.strftime('%d.%m.%Y')} tarihindeki nöbetiniz Dr. {yeni_doktor.kullanici.get_full_name()} tarafından havuzdan alınmıştır.\n\nİyi dinlenmeler dileriz!",
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[eski_doktor.kullanici.email],
-                fail_silently=True,
-            )
-    except Exception as e:
-        print(f"Havuz maili hatası: {e}")
-        
-    messages.success(request, f"🎉 {ilan.nobet.tarih.strftime('%d.%m.%Y')} tarihli nöbeti başarıyla üstünüze aldınız!")
-    return redirect('doktor_paneli')   
-
-# =========================================================
-# 🌟 AŞAMA 2: PWA (MOBİL UYGULAMA) AYARLARI 🌟
-# =========================================================
+# --- PWA (Progressive Web App) Yapılandırmaları ---
 
 def manifest_json(request):
     manifest = {
@@ -565,19 +549,17 @@ def service_worker(request):
     """
     return HttpResponse(sw_code, content_type='application/javascript')
 
-# =========================================================
-# 🌟 AŞAMA 3: RESMİ PDF ÇIKTISI (YAZDIRMA) 🌟
-# =========================================================
-from datetime import datetime
+
+# --- Raporlama ve İstatistik Modülleri ---
 
 @staff_member_required
 def resmi_pdf_cikti(request):
+    # İlgili ayın nöbet listesinin HTML/PDF formatına uygun derlenmesi
     bugun = datetime.today()
     yil = int(request.GET.get('yil', bugun.year))
     ay = int(request.GET.get('ay', bugun.month))
     
     nobetler = Nobet.objects.filter(tarih__year=yil, tarih__month=ay).order_by('tarih', 'bolum')
-    
     aylar = {1:"Ocak", 2:"Şubat", 3:"Mart", 4:"Nisan", 5:"Mayıs", 6:"Haziran", 7:"Temmuz", 8:"Ağustos", 9:"Eylül", 10:"Ekim", 11:"Kasım", 12:"Aralık"}
     
     context = {
@@ -588,16 +570,14 @@ def resmi_pdf_cikti(request):
     }
     return render(request, 'hastane/resmi_pdf.html', context)
 
-# =========================================================
-# 🌟 CİLA 1 & 3: YARININ NÖBETÇİLERİNİ UYAR (MAİL + TELEGRAM) 🌟
-# =========================================================
 @staff_member_required
 def yarin_nobetcilerini_uyar(request):
+    # Ertesi gün nöbeti olan personellerin tespiti ve çok kanallı (Email/Telegram) bilgilendirilmesi
     yarin = datetime.today().date() + timedelta(days=1)
     yarin_nobetleri = Nobet.objects.filter(tarih=yarin)
     
     if not yarin_nobetleri.exists():
-        messages.warning(request, "⚠️ Yarın için planlanmış herhangi bir nöbet bulunamadı.")
+        messages.warning(request, "Yarın için planlanmış herhangi bir nöbet bulunamadı.")
         return redirect('nobet_planla')
         
     gonderilen_mail = 0
@@ -608,50 +588,38 @@ def yarin_nobetcilerini_uyar(request):
         
         email = doktor.kullanici.email
         if email:
-            try:
-                baslik = f"⏰ Hatırlatma: Yarın Nöbetiniz Var! ({nobet.get_bolum_display()})"
-                mesaj = f"Merhaba Dr. {doktor.kullanici.first_name},\n\nYarın ({yarin.strftime('%d.%m.%Y')}) tarihi itibariyle hastanemizin {nobet.get_bolum_display()} bölümünde nöbetçi olduğunuzu hatırlatırız.\n\nİyi nöbetler dileriz!\n\nMerkez Hastanesi Başhekimliği"
-                
-                send_mail(
-                    subject=baslik,
-                    message=mesaj,
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[email],
-                    fail_silently=True,
-                )
-                gonderilen_mail += 1
-            except Exception as e:
-                print(f"Mail gönderme hatası: {e}")
+            baslik = f"Hatırlatma: Nöbet Bilgilendirmesi ({nobet.get_bolum_display()})"
+            mesaj = (f"Merhaba Dr. {doktor.kullanici.first_name},\n\n"
+                     f"Yarın ({yarin.strftime('%d.%m.%Y')}) tarihi itibariyle hastanemizin {nobet.get_bolum_display()} bölümünde nöbetçi olduğunuzu hatırlatırız.\n\n"
+                     "İyi nöbetler dileriz.")
+            arka_planda_mail_gonder(subject=baslik, message=mesaj, recipient_list=[email])
+            gonderilen_mail += 1
 
         if doktor.telegram_chat_id:
             try:
-                telegram_mesaj = f"🏥 *Merkez Hastanesi Nöbet Hatırlatması*\n\nMerhaba Dr. {doktor.kullanici.first_name},\n\nYarın ({yarin.strftime('%d.%m.%Y')}) *{nobet.get_bolum_display()}* bölümünde nöbetiniz bulunmaktadır.\n\nİyi çalışmalar dileriz! 🩺"
+                telegram_mesaj = f"Merkez Hastanesi Nöbet Hatırlatması\n\nMerhaba Dr. {doktor.kullanici.first_name},\nYarın ({yarin.strftime('%d.%m.%Y')}) {nobet.get_bolum_display()} bölümünde nöbetiniz bulunmaktadır.\nİyi çalışmalar dileriz."
                 telegram_url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage"
                 
                 requests.post(telegram_url, data={
                     'chat_id': doktor.telegram_chat_id, 
-                    'text': telegram_mesaj, 
-                    'parse_mode': 'Markdown'
+                    'text': telegram_mesaj
                 })
                 gonderilen_telegram += 1
             except Exception as e:
-                print(f"Telegram gönderme hatası: {e}")
+                print(f"Telegram API entegrasyon hatası: {e}")
                 
-    messages.success(request, f"✅ Başarılı! {gonderilen_mail} doktora Mail, {gonderilen_telegram} doktora Telegram mesajı gönderildi.")
+    messages.success(request, f"İşlem tamamlandı. {gonderilen_mail} e-posta, {gonderilen_telegram} Telegram mesajı iletildi.")
     return redirect('nobet_planla') 
 
-# =========================================================
-# 🌟 CİLA 5: NÖBET ÜCRETİ / FİNANS RAPORU 🌟
-# =========================================================
 @staff_member_required
 def nobet_ucret_raporu(request):
+    # Nöbet hak edişlerinin Resmi Tatil çarpanları hesaba katılarak aylık olarak raporlanması
     bugun = timezone.now().date()
     yil = bugun.year
     ay = bugun.month
 
     aylar = {1:"Ocak", 2:"Şubat", 3:"Mart", 4:"Nisan", 5:"Mayıs", 6:"Haziran", 7:"Temmuz", 8:"Ağustos", 9:"Eylül", 10:"Ekim", 11:"Kasım", 12:"Aralık"}
     donem_ismi = f"{aylar[ay]} {yil}"
-
     birim_ucret = Decimal(str(getattr(settings, 'NOBET_BIRIM_UCRETI', 2500)))
 
     def nobet_zam_katsayisini_bul(tarih):
@@ -680,7 +648,6 @@ def nobet_ucret_raporu(request):
             'toplam_nobet': dr_toplam_nobet_sayisi,
             'toplam_ucret': dr_toplam_ucret
         })
-        
         hastane_toplam_ucret += dr_toplam_ucret
 
     context = {
@@ -690,14 +657,11 @@ def nobet_ucret_raporu(request):
         'hastane_toplam_ucret': hastane_toplam_ucret,
         'tarih_imza': bugun.strftime("%d.%m.%Y")
     }
-
     return render(request, 'hastane/nobet_ucret_raporu.html', context)
 
-# =========================================================
-# 📊 CİLA 2: İSTATİSTİK VE VARYANS ANALİZ MERKEZİ 📊
-# =========================================================
 @staff_member_required
 def nobet_analiz_merkezi(request):
+    # Nöbet dağılımının matematiksel varyans ve standart sapma modellemesi ile analiz edilmesi
     yil = int(request.GET.get('yil', datetime.today().year))
     ay = int(request.GET.get('ay', datetime.today().month))
     
@@ -706,7 +670,7 @@ def nobet_analiz_merkezi(request):
     toplam_nobet_sayisi = nobetler.count()
     
     if toplam_nobet_sayisi == 0:
-        messages.warning(request, "Seçili ayda analiz yapılacak veri bulunamadı.")
+        messages.warning(request, "Seçili periyot için analiz verisi bulunamadı.")
         return redirect('nobet_planla')
 
     veriler = []
@@ -725,7 +689,6 @@ def nobet_analiz_merkezi(request):
     kareler_toplami = sum((v['sayi'] - ortalama)**2 for v in veriler)
     varyans = kareler_toplami / n
     standart_sapma = math.sqrt(varyans)
-
     adalet_skoru = max(0, 100 - (standart_sapma * 20)) 
 
     context = {
@@ -738,17 +701,12 @@ def nobet_analiz_merkezi(request):
     }
     return render(request, 'hastane/nobet_analiz.html', context)
 
+# --- Güvenlik Logları ve Oturum İşlemleri ---
 
-# =========================================================
-# 🕵️‍♂️ CİLA 3: SİSTEM HAREKETLERİ (LOG / GÜVENLİK) 🕵️‍♂️
-# =========================================================
 @staff_member_required
 def sistem_loglari(request):
     loglar = LogEntry.objects.select_related('user', 'content_type').order_by('-action_time')[:100]
-    
-    context = {
-        'loglar': loglar,
-    }
+    context = {'loglar': loglar}
     return render(request, 'hastane/sistem_loglari.html', context)
 
 @login_required

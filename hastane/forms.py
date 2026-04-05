@@ -2,7 +2,7 @@ from django import forms
 from django.utils import timezone
 from .models import NobetTakas, Nobet, Doktor
 
-# 🌟 Nöbet listesini jilet gibi gösteren özel formatlayıcı
+# Nöbet seçim alanında tarih ve saat bilgisini formatlı göstermek için özel sınıf
 class CustomNobetChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, obj):
         aylar = {1:"Oca", 2:"Şub", 3:"Mar", 4:"Nis", 5:"May", 6:"Haz", 7:"Tem", 8:"Ağu", 9:"Eyl", 10:"Eki", 11:"Kas", 12:"Ara"}
@@ -33,7 +33,6 @@ class TakasTalebiForm(forms.ModelForm):
             'aciklama': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Opsiyonel mazeretiniz...'}),
         }
 
-    # 🌟 İşte silinen ve sistemi çökerten o kritik fonksiyon:
     def __init__(self, *args, **kwargs):
         self.doktor = kwargs.pop('doktor', None)
         super(TakasTalebiForm, self).__init__(*args, **kwargs)
@@ -41,17 +40,15 @@ class TakasTalebiForm(forms.ModelForm):
         bugun = timezone.now().date()
         
         if self.doktor:
-            # Senin nöbetlerin ve diğer doktorlar listesi
+            # Tarihi geçmiş nöbetlerin listelenmesini önleyen filtreleme
             self.fields['verilecek_nobet'].queryset = Nobet.objects.filter(doktor=self.doktor, tarih__gte=bugun).order_by('tarih')
             self.fields['hedef_doktor'].queryset = Doktor.objects.exclude(id=self.doktor.id)
 
-        # 🌟 İŞTE ÇÖZÜM BURADA: GÜVENLİK KİLİDİNİ AÇIYORUZ
-        # Eğer form "Gönder" butonuna basılarak gelmişse (self.data içinde hedef_doktor varsa)
+        # AJAX ile yüklenen hedef doktor verilerinin POST isteği sırasında
+        # Django form doğrulamasından (validation) geçebilmesi için queryset güncellemesi
         if 'hedef_doktor' in self.data:
             try:
-                # Ekranda seçilen hedef doktorun kimliğini (ID) al
                 hedef_id = int(self.data.get('hedef_doktor'))
-                # Django'nun güvenlik polisine: "Bu doktorun gelecek nöbetlerini kabul et" emrini ver
                 self.fields['alinacak_nobet'].queryset = Nobet.objects.filter(doktor_id=hedef_id, tarih__gte=bugun).order_by('tarih')
             except (ValueError, TypeError):
                 pass

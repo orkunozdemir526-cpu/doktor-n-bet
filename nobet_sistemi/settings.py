@@ -57,9 +57,9 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'orkunozdemir526@gmail.com'  # BURAYA KENDİ GMAIL ADRESİNİ YAZ
-EMAIL_HOST_PASSWORD = 'oupg fvcm odhs uejb'       # GMAIL "UYGULAMA ŞİFRENİ" YAZ
+EMAIL_HOST_PASSWORD = ''       # GMAIL "UYGULAMA ŞİFRENİ" YAZ
 # TELEGRAM BOT AYARLARI
-TELEGRAM_BOT_TOKEN = '8698533542:AAEJtyRtuaAINwAa8iuoWqvTJB0YjkePBhg' 
+TELEGRAM_BOT_TOKEN = '' 
 # 💰 NÖBET SİSTEMİ FİNANS AYARLARI
 # Sıradan bir nöbetin saatlik/birim ücreti (PDF'de görünen değer)
 NOBET_BIRIM_UCRETI = 2500 # TL

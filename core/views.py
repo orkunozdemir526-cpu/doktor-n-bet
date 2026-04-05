@@ -5,10 +5,7 @@ from django.contrib import messages
 from datetime import datetime, date, timedelta
 import calendar
 from collections import defaultdict
-
 from .models import Doktor, IzinTalebi, Nobet, HastaneAyarlari
-from .nobet_planner import NobetPlanlayici
-
 import pandas as pd
 import io
 from django.http import HttpResponse
@@ -86,27 +83,6 @@ def takvim_gorunumu(request, yil, ay):
     context = {'yil': yil, 'ay': ay, 'ay_ismi': ay_isimleri[ay], 'ay_gunleri': ay_gunleri, 'nobetler': gunlere_gore_nobetler, 'onceki_yil': onceki_ay_tarih.year, 'onceki_ay': onceki_ay_tarih.month, 'sonraki_yil': sonraki_ay_tarih.year, 'sonraki_ay': sonraki_ay_tarih.month}
     return render(request, 'core/takvim.html', context)
 
-@staff_member_required
-def yonetim_paneli(request):
-    if request.method == 'POST':
-        try:
-            yil, ay = int(request.POST.get('yil')), int(request.POST.get('ay'))
-            planlayici = NobetPlanlayici(yil, ay)
-            plan = planlayici.plani_olustur()
-            if not plan:
-                messages.error(request, f"{yil}-{ay} için yeterli doktor veya geçerli bir kombinasyon bulunamadığından plan oluşturulamadı.")
-            else:
-                planlayici.plani_kaydet(plan)
-                messages.success(request, f"{yil} yılının {ay}. ayı için nöbet planı başarıyla oluşturuldu!")
-            return redirect('yonetim_paneli')
-        except Exception as e:
-            messages.error(request, f"Bir hata oluştu: {e}")
-            return redirect('yonetim_paneli')
-    simdiki_zaman = datetime.now()
-    gelecek_ay = (simdiki_zaman.month % 12) + 1
-    gelecek_yil = simdiki_zaman.year + (1 if simdiki_zaman.month == 12 else 0)
-    context = {'varsayilan_yil': gelecek_yil, 'varsayilan_ay': gelecek_ay}
-    return render(request, 'core/yonetim_paneli.html', context)
 
 @login_required
 def export_takvim_excel(request, yil, ay):

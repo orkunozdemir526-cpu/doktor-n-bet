@@ -183,42 +183,36 @@ class IzinTalebi(models.Model):
     def __str__(self):
         return f"{self.doktor} - İzin: {self.tarih} ({self.get_durum_display()})"
 
-    # 🌟 YENİ: ZAMAN KİLİDİ KURALI
+    # Geçmiş tarihli izin taleplerinin değiştirilmesini önleyen doğrulama metodu
     def clean(self):
         super().clean()
-        if self.pk: # Sadece var olan (önceden açılmış) bir izin güncelleniyorsa kontrol et
+        if self.pk: 
             eski = IzinTalebi.objects.get(pk=self.pk)
             bugun = timezone.now().date()
             
-            # Eğer izin tarihi geçmişte kalmışsa VE durumu değiştirilmeye çalışılıyorsa:
             if self.tarih < bugun and self.durum != eski.durum:
-                raise ValidationError("🚨 Zaman Kilidi: Geçmiş tarihteki (kullanılmış) bir iznin durumunu sonradan değiştiremezsiniz!")
+                raise ValidationError("Veri Bütünlüğü İhlali: Kullanılmış veya geçmiş tarihteki bir iznin durumu sonradan değiştirilemez.")
 
-    # 🌟 2. AŞAMA: MATEMATİK MERKEZİ (Doğrudan SQL Müdahalesi) 🌟
-    # 🌟 GÜNCELLENMİŞ KAYDETME MOTORU
+    # İzin durumu değişikliklerinde bakiye güncellemesi ve bildirim oluşturma işlemleri
     def save(self, *args, **kwargs):
-        # 1. Kaydetmeden önce Zaman Kilidini zorla çalıştır
         self.clean() 
         
         eski_durum = None
         if self.pk:
             eski_durum = IzinTalebi.objects.get(pk=self.pk).durum
 
-        # 2. İzni veritabanına kaydet
         super().save(*args, **kwargs)
 
-        # 3. Bakiye ve Bildirim İşlemleri
         if eski_durum != self.durum:
-            
             if self.durum == 'onaylandi':
                 Doktor.objects.filter(pk=self.doktor.pk).update(kalan_izin_hakki=F('kalan_izin_hakki') - 1)
-                Bildirim.objects.create(doktor=self.doktor, mesaj=f"🏖️ {self.tarih.strftime('%d.%m.%Y')} tarihli yıllık izin talebiniz Başhekimlik tarafından ONAYLANDI.")
+                Bildirim.objects.create(doktor=self.doktor, mesaj=f"{self.tarih.strftime('%d.%m.%Y')} tarihli yıllık izin talebiniz Başhekimlik tarafından onaylandı.")
                 
             elif eski_durum == 'onaylandi':
                 Doktor.objects.filter(pk=self.doktor.pk).update(kalan_izin_hakki=F('kalan_izin_hakki') + 1)
                 
             if self.durum == 'reddedildi':
-                Bildirim.objects.create(doktor=self.doktor, mesaj=f"❌ {self.tarih.strftime('%d.%m.%Y')} tarihli yıllık izin talebiniz REDDEDİLDİ.")
+                Bildirim.objects.create(doktor=self.doktor, mesaj=f"{self.tarih.strftime('%d.%m.%Y')} tarihli yıllık izin talebiniz reddedildi.")
 
     # 🌟 3. AŞAMA: GÜVENLİK (Silinirse Hakkı İade Et) 🌟
     def delete(self, *args, **kwargs):
@@ -268,7 +262,7 @@ class NobetHavuzu(models.Model):
         return f"İlan: {self.nobet.tarih} - {self.olusturan_doktor.kullanici.get_full_name()}"
     
     # =========================================================
-# 🌟 AŞAMA 4: DOKTOR TERCİH (KISITLAMA) SİSTEMİ 🌟
+# 🌟  DOKTOR TERCİH (KISITLAMA) SİSTEMİ 🌟
 # =========================================================
 class NobetTercihi(models.Model):
     doktor = models.ForeignKey('Doktor', on_delete=models.CASCADE, verbose_name="Doktor")

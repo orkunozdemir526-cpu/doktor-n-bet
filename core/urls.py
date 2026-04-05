@@ -17,8 +17,7 @@ urlpatterns = [
     path('takvim/<int:yil>/<int:ay>/', views.takvim_gorunumu, name='takvim_gorunumu'),
     path('takvim/export/<int:yil>/<int:ay>/', views.export_takvim_excel, name='export_takvim_excel'),
 
-    # --- Yönetim Paneli URL'si ---
-    path('yonetim/', views.yonetim_paneli, name='yonetim_paneli'),
+    
 
     # --- Ana Sayfa URL'si ---
     path('', views.doktor_paneli_redirect, name='home'),

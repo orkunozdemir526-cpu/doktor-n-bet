@@ -2,53 +2,177 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Otomatik Nöbet Planlayıcı</title>
+    <title>Otomatik Nöbet Planlayıcı | Hastane Yönetim Sistemi</title>
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/dark.css" id="flatpickr-dark-theme" disabled>
+
     <style>
-        /* --- GENEL TASARIM --- */
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; transition: background-color 0.3s; }
-        .planlayici-container { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); width: 100%; max-width: 450px; text-align: center; }
-        h2 { color: #333; margin-top: 0; margin-bottom: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        /* ==========================================================================
+           GLOBAL LAYOUT & TYPOGRAPHY
+           ========================================================================== */
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #f4f7f6; 
+            margin: 0; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            transition: background-color 0.3s; 
+        }
+        
+        /* ==========================================================================
+           MAIN CONTAINER & HEADINGS
+           ========================================================================== */
+        .planlayici-container { 
+            background: white; 
+            padding: 40px; 
+            border-radius: 12px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08); 
+            width: 100%; 
+            max-width: 450px; 
+            text-align: center; 
+        }
+        h2 { 
+            color: #333; 
+            margin-top: 0; 
+            margin-bottom: 10px; 
+            font-weight: 700; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 10px; 
+        }
         p.subtitle { color: #777; font-size: 14px; margin-bottom: 30px; }
         
+        /* ==========================================================================
+           FORM ELEMENTS (Inputs, Selects, Buttons)
+           ========================================================================== */
         .form-group { text-align: left; margin-bottom: 20px; }
         .form-group label { display: block; margin-bottom: 8px; color: #555; font-weight: 600; font-size: 14px; }
-        .form-group select, .form-group input[type="date"] { width: 100%; padding: 12px; border: 1px solid #ced4da; border-radius: 6px; box-sizing: border-box; font-size: 15px; outline: none; background-color: #fff; color: #333; transition: border-color 0.3s; }
-        .form-group select:focus, .form-group input:focus { border-color: #4a148c; }
         
-        .btn-planla { background-color: #4a148c; color: white; border: none; padding: 15px; width: 100%; border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: bold; transition: background 0.3s; margin-top: 10px; }
+        .form-group select, 
+        .form-group input[type="date"] { 
+            width: 100%; 
+            padding: 12px; 
+            border: 1px solid #ced4da; 
+            border-radius: 6px; 
+            box-sizing: border-box; 
+            font-size: 15px; 
+            outline: none; 
+            background-color: #fff; 
+            color: #333; 
+            transition: border-color 0.3s; 
+        }
+        .form-group select:focus, 
+        .form-group input:focus { border-color: #4a148c; }
+        
+        .btn-planla { 
+            background-color: #4a148c; 
+            color: white; 
+            border: none; 
+            padding: 15px; 
+            width: 100%; 
+            border-radius: 6px; 
+            font-size: 16px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            transition: background 0.3s; 
+            margin-top: 10px; 
+        }
         .btn-planla:hover { background-color: #310b66; }
         .btn-planla:disabled { background-color: #8a5bc4; cursor: not-allowed; }
         
-        /* Geri Dön Linki İçin Düzeltilmiş Tasarım */
+        /* ==========================================================================
+           FLATPICKR CUSTOM STYLES (Date Picker Input Override)
+           ========================================================================== */
+        .custom-date-input {
+            background-color: #ffffff !important;
+            color: #333333 !important;
+            border: 1px solid #ced4da !important;
+            border-radius: 6px !important;
+            padding: 12px 15px !important;
+            font-size: 15px !important;
+            width: 100% !important;
+            cursor: pointer !important;
+            box-sizing: border-box !important;
+            /* Calendar SVG Icon embedded for performance */
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236f42c1'%3E%3Cpath d='M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM7 11h2v2H7v-2zm4 0h2v2h-2v-2zm4 0h2v2h-2v-2zm-8 4h2v2H7v-2zm4 0h2v2h-2v-2zm4 0h2v2h-2v-2z'/%3E%3C/svg%3E") !important;
+            background-repeat: no-repeat !important;
+            background-position: right 12px center !important;
+            background-size: 20px !important;
+            padding-right: 40px !important;
+            transition: all 0.3s;
+        }
+        
+        .custom-date-input:focus {
+            border-color: #6f42c1 !important;
+            box-shadow: 0 0 0 3px rgba(111, 66, 193, 0.2) !important;
+            outline: none !important;
+        }
+
+        /* ==========================================================================
+           NAVIGATION & ALERTS
+           ========================================================================== */
         .return-link { display: block; width: 100%; margin-top: 25px; text-align: center; }
         .return-link a { color: #888; text-decoration: none; font-size: 14px; font-weight: 600; transition: color 0.3s; }
         .return-link a:hover { color: #333; }
         
-        /* --- GECE MODU --- */
+        .error-msg { background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px; margin-bottom: 20px; font-size: 14px; border: 1px solid #f5c6cb; }
+
+        /* ==========================================================================
+           LOADING OVERLAY (Asynchronous Task Indicator)
+           ========================================================================== */
+        #yapayZekaLoading { 
+            display: none; 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.85); 
+            z-index: 9999; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+            color: white; 
+        }
+        .spinner { 
+            border: 6px solid rgba(255, 255, 255, 0.15); 
+            border-top: 6px solid #a370f7; 
+            border-radius: 50%; 
+            width: 65px; 
+            height: 65px; 
+            animation: spin 1s linear infinite; 
+            margin-bottom: 25px; 
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* ==========================================================================
+           DARK MODE (Dynamic Theme Support)
+           ========================================================================== */
         body.dark-mode { background-color: #121212; }
         body.dark-mode .planlayici-container { background: #1e1e1e; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         body.dark-mode h2 { color: #f1f1f1; }
         body.dark-mode p.subtitle { color: #aaa; }
         body.dark-mode .form-group label { color: #bbb; }
-        body.dark-mode .form-group select, body.dark-mode .form-group input { background-color: #2a2a2a; color: #f1f1f1; border-color: #444; }
-        body.dark-mode .form-group select:focus, body.dark-mode .form-group input:focus { border-color: #a370f7; }
+        body.dark-mode .form-group select, 
+        body.dark-mode .form-group input { background-color: #2a2a2a; color: #f1f1f1; border-color: #444; }
+        body.dark-mode .form-group select:focus, 
+        body.dark-mode .form-group input:focus { border-color: #a370f7; }
         body.dark-mode .btn-planla { background-color: #5c20a8; }
         body.dark-mode .btn-planla:hover { background-color: #7938cf; }
         body.dark-mode .return-link a:hover { color: #fff; }
-
-        /* YÜKLEME EKRANI */
-        #yapayZekaLoading { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; flex-direction: column; justify-content: center; align-items: center; color: white; }
-        .spinner { border: 6px solid rgba(255, 255, 255, 0.15); border-top: 6px solid #a370f7; border-radius: 50%; width: 65px; height: 65px; animation: spin 1s linear infinite; margin-bottom: 25px; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .error-msg { background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px; margin-bottom: 20px; font-size: 14px; border: 1px solid #f5c6cb; }
         body.dark-mode .error-msg { background-color: #440000; color: #ffb3b3; border-color: #660000; }
+        body.dark-mode .custom-date-input { background-color: #2a2a2a !important; color: #f1f1f1 !important; border-color: #444 !important; }
     </style>
 </head>
 <body>
 
     <div class="planlayici-container">
         <h2>🪄 Otomatik Planlayıcı</h2>
-        <p class="subtitle">Planlama bittiğinde Excel dosyası otomatik iner.</p>
+        <p class="subtitle">Planlama süreci tamamlandıktan sonra MS Excel (.xlsx) formatında rapor oluşturulacaktır.</p>
 
         {% if error %}
             <div class="error-msg">⚠️ {{ error }}</div>
@@ -65,7 +189,7 @@
         <form method="POST" action="{% url 'nobet_planla' %}" id="planlamaFormu">
             {% csrf_token %}
             <div class="form-group">
-                <label>Poliklinik Seçin</label>
+                <label>Poliklinik Seçimi</label>
                 <select name="poliklinik_id" required>
                     {% for p in poliklinikler %}
                         <option value="{{ p.id }}">{{ p.isim }}</option>
@@ -73,37 +197,55 @@
                 </select>
             </div>
             <div class="form-group">
-                <label>Başlangıç Tarihi</label>
+                <label>Periyot Başlangıç Tarihi</label>
                 <input type="date" name="baslangic_tarihi" required>
             </div>
             <div class="form-group">
-                <label>Bitiş Tarihi</label>
+                <label>Periyot Bitiş Tarihi</label>
                 <input type="date" name="bitis_tarihi" required>
             </div>
-            <button type="submit" class="btn-planla" id="submitBtn">Planla ve Excel İndir 📊</button>
+            <button type="submit" class="btn-planla" id="submitBtn">Dağıtımı Başlat ve Dışa Aktar 📊</button>
         </form>
 
         <div class="return-link">
             {% if user.is_superuser %}
-                <a href="/admin/">← Admin Paneline Dön</a>
+                <a href="/admin/">← Yönetim Paneline Dön</a>
             {% else %}
-                <a href="{% url 'doktor_paneli' %}">← Panele Dön</a>
+                <a href="{% url 'doktor_paneli' %}">← Kontrol Paneline Dön</a>
             {% endif %}
         </div>
     </div>
 
     <div id="yapayZekaLoading">
         <div class="spinner"></div>
-        <h3 style="margin:0; font-size:24px; font-weight:600;">🧠 Yapay Zeka Nöbetleri Planlıyor...</h3>
-        <p style="color:#ccc; margin-top:12px;">Lütfen bekleyin, adaletli bir dağılım için ihtimaller hesaplanıyor.</p>
+        <h3 style="margin:0; font-size:24px; font-weight:600;">🧠 Nöbet Dağıtım Algoritması Çalışıyor...</h3>
+        <p style="color:#ccc; margin-top:12px;">Optimum liyakat ve adalet dağılımı için personel verileri analiz ediliyor.</p>
     </div>
 
-    <script>
-        if(localStorage.getItem('hastane_tema') === 'dark') {
-            document.body.classList.add('dark-mode');
-        }
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/tr.js"></script>
 
+    <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Check LocalStorage for theme preference to initialize dark mode
+            if(localStorage.getItem('hastane_tema') === 'dark') {
+                document.body.classList.add('dark-mode');
+                // Enable Flatpickr native dark theme
+                document.getElementById('flatpickr-dark-theme').removeAttribute('disabled');
+            }
+
+            // Initialize Flatpickr instances for standardizing date inputs across browsers
+            flatpickr("input[type='date']", {
+                locale: "tr",
+                dateFormat: "Y-m-d",
+                altInput: true,
+                altFormat: "j F Y",
+                disableMobile: true,
+                // Assign a custom class for CSS overriding
+                altInputClass: "custom-date-input" 
+            });
+
+            // Handle UI state during asynchronous form submission
             const form = document.getElementById('planlamaFormu');
             const loadingEkrani = document.getElementById('yapayZekaLoading');
             const btn = document.getElementById('submitBtn');
@@ -112,72 +254,26 @@
                 form.addEventListener('submit', function() {
                     loadingEkrani.style.display = 'flex';
                     btn.disabled = true;
-                    btn.innerText = 'Hesaplanıyor... ⏳';
+                    btn.innerText = 'Algoritma Çalışıyor... ⏳';
                     
+                    // Artificial delay for UX feedback (ensures the user sees the loading state)
                     setTimeout(function() {
                         loadingEkrani.style.display = 'none';
                         btn.disabled = false;
-                        btn.innerText = 'Planla ve Excel İndir 📊';
+                        btn.innerText = 'Dağıtımı Başlat ve Dışa Aktar 📊';
                     }, 2000);
                 });
             }
+            
+            // Reset UI state when the window regains focus (e.g., after the file download prompt)
             window.addEventListener('focus', function() {
                 loadingEkrani.style.display = 'none';
-                if(btn) { btn.disabled = false; btn.innerText = 'Planla ve Excel İndir 📊'; }
+                if(btn) { 
+                    btn.disabled = false; 
+                    btn.innerText = 'Dağıtımı Başlat ve Dışa Aktar 📊'; 
+                }
             });
         });
     </script>
-
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    
-    <style>
-        /* Sadece bizim özel isimlendirdiğimiz VIP takvimleri hedef alıyoruz */
-        .vip-takvim-kutusu {
-            background-color: #ffffff !important;
-            color: #333333 !important;
-            border: 1px solid #ced4da !important;
-            border-radius: 6px !important;
-            padding: 12px 15px !important;
-            font-size: 15px !important;
-            width: 100% !important;
-            cursor: pointer !important;
-            box-sizing: border-box !important;
-            /* Şık Mor İkon */
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236f42c1'%3E%3Cpath d='M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM7 11h2v2H7v-2zm4 0h2v2h-2v-2zm4 0h2v2h-2v-2zm-8 4h2v2H7v-2zm4 0h2v2h-2v-2zm4 0h2v2h-2v-2z'/%3E%3C/svg%3E") !important;
-            background-repeat: no-repeat !important;
-            background-position: right 12px center !important;
-            background-size: 20px !important;
-            padding-right: 40px !important;
-            transition: all 0.3s;
-        }
-        
-        .vip-takvim-kutusu:focus {
-            border-color: #6f42c1 !important;
-            box-shadow: 0 0 0 3px rgba(111, 66, 193, 0.2) !important;
-            outline: none !important;
-        }
-
-        /* 🌙 Gece Moduna Uyum (Sadece doktor paneli için çalışır, admin sayfasını bozmaz) */
-        body.dark-mode .vip-takvim-kutusu {
-            background-color: #2a2a2a !important;
-            color: #f1f1f1 !important;
-            border-color: #444 !important;
-        }
-    </style>
-
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/tr.js"></script>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            flatpickr("input[type='date']", {
-                locale: "tr",
-                dateFormat: "Y-m-d",
-                altInput: true,
-                altFormat: "j F Y",
-                disableMobile: true,
-                // 🌟 İŞTE SİHİR BURADA: Flatpickr'ın oluşturduğu yeni kutuya zorla kendi ismimizi (class) veriyoruz!
-                altInputClass: "vip-takvim-kutusu" 
-            });
-        });
-    </script>
+</body>
+</html>
